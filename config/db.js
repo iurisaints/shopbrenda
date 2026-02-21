@@ -6,10 +6,6 @@ const dbUser = process.env.MYSQLUSER || process.env.DB_USER || 'root';
 const dbPassword = process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '';
 const dbName = process.env.MYSQLDATABASE || process.env.DB_NAME || 'railway';
 
-console.log("-------------------------------------------------");
-console.log(`Tentando conectar no banco -> HOST: ${dbHost} | PORTA: ${dbPort} | USER: ${dbUser} | BANCO: ${dbName}`);
-console.log("-------------------------------------------------");
-
 const db = mysql.createPool({
     host: dbHost,
     user: dbUser,
@@ -32,3 +28,4 @@ db.getConnection()
     });
 
 module.exports = db;
+
