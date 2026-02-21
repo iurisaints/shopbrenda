@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Professora Brenda</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="./styles/styles.css">
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+
+    <header class="bg-white border-bottom py-3 shadow-sm">
+        <div class="container d-flex justify-content-center">
+            <a href="index.html" class="text-decoration-none d-flex align-items-center gap-2">
+                <div class="logo-circle" style="width: 45px; height: 45px; background: #0f172a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem;">BF</div>
+                <div class="text-start">
+                    <h1 class="m-0 text-dark fw-bold fs-5" style="line-height: 1.1;">Professora<br>Brenda</h1>
+                </div>
+            </a>
+        </div>
+    </header>
+
+    <main class="flex-grow-1 d-flex align-items-center justify-content-center py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-12 col-md-6 col-lg-4">
+                    
+                    <div class="card border-0 shadow-lg rounded-4 p-4">
+                        <div class="text-center mb-4">
+                            <h2 class="fw-bold text-dark">Bem-vindo(a)!</h2>
+                            <p class="text-muted">Acesse sua conta para baixar materiais.</p>
+                        </div>
+
+                        <form id="login-form" onsubmit="handleLogin(event)">
+                            
+                            <div class="mb-3 text-start">
+                                <label for="email" class="form-label fw-bold"><i class="far fa-envelope me-1"></i> E-mail</label>
+                                <input type="email" id="email" class="form-control bg-light" placeholder="seunome@email.com" required>
+                            </div>
+
+                            <div class="mb-4 text-start">
+                                <div class="d-flex justify-content-between">
+                                    <label for="password" class="form-label fw-bold"><i class="fas fa-lock me-1"></i> Senha</label>
+                                    <a href="#" onclick="alert('Funcionalidade em desenvolvimento')" class="text-decoration-none small text-muted">Esqueceu?</a>
+                                </div>
+                                <input type="password" id="password" class="form-control bg-light" placeholder="Sua senha secreta" required>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg fw-bold" style="background-color: #2563eb; border: none;">
+                                    ENTRAR NA CONTA
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="text-center mt-4">
+                            <span class="text-muted">Ainda não tem conta? </span>
+                            <a href="cadastro.html" class="text-decoration-none fw-bold text-primary">Cadastre-se aqui</a>.
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="./scripts/app.js"></script>
+    <script src="./scripts/script-login.js"></script>
+</body>
+</html>

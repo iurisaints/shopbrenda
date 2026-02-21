@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Favoritos | Professora Brenda</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="./styles/styles.css">
+</head>
+
+<body class="bg-light d-flex flex-column min-vh-100">
+
+    <div class="top-bar">
+        COMO COMPRAR? &nbsp;|&nbsp; FAQ & FALE CONOSCO &nbsp;|&nbsp; MATERIAIS BNCC
+    </div>
+
+    <header class="main-header sticky-top bg-white border-bottom shadow-sm py-3">
+        <div class="container">
+            <div class="row align-items-center gap-3 gap-md-0">
+
+                <div class="col-12 col-md-2 text-center text-md-start">
+                    <a href="index.html" class="text-decoration-none d-inline-flex align-items-center gap-2">
+                        <div class="logo-circle"
+                            style="width: 45px; height: 45px; background: #0f172a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem;">
+                            BF</div>
+                        <div class="text-start">
+                            <h1 class="m-0 text-dark fw-bold fs-5" style="line-height: 1.1;">Profa.<br>Brenda</h1>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="col-12 col-md-5">
+                    <div class="input-group">
+                        <button class="btn btn-dark dropdown-toggle px-3 fw-bold" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #0f172a;">
+                            <i class="fas fa-bars me-1"></i> CATEGORIAS
+                        </button>
+                        <ul class="dropdown-menu shadow-lg border-0">
+                            <li><a class="dropdown-item fw-bold" href="#" onclick="selectCategory('Todas', event)">Todas
+                                    as Categorias</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="#"
+                                    onclick="selectCategory('Ensino Fundamental', event)">Fundamental</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="selectCategory('Ensino Médio', event)">Ensino
+                                    Médio</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="selectCategory('BNCC', event)">BNCC</a></li>
+                            <li><a class="dropdown-item" href="#"
+                                    onclick="selectCategory('Inclusão', event)">Inclusão</a></li>
+                            <li><a class="dropdown-item" href="#"
+                                    onclick="selectCategory('Bilíngue', event)">Bilíngue</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="selectCategory('Inglês', event)">Inglês</a>
+                            </li>
+                            <li><a class="dropdown-item" href="#"
+                                    onclick="selectCategory('Ciências', event)">Ciências</a></li>
+                            <li><a class="dropdown-item" href="#"
+                                    onclick="selectCategory('Experimento', event)">Experimento</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="#"
+                                    onclick="selectCategory('Pronto para Imprimir', event)">Pronto para Imprimir</a>
+                            </li>
+                            <li><a class="dropdown-item" href="#" onclick="selectCategory('Colorir', event)">Colorir</a>
+                            </li>
+                            <li><a class="dropdown-item" href="#"
+                                    onclick="selectCategory('Recortar e Colar', event)">Recortar e Colar</a></li>
+                            <li><a class="dropdown-item" href="#"
+                                    onclick="selectCategory('Construir', event)">Construir</a></li>
+                        </ul>
+                        <input type="text" id="search-input" class="form-control border-dark"
+                            placeholder="O que você procura hoje?">
+                        <button id="search-btn" class="btn btn-primary" type="button"
+                            style="background-color: #2563eb;"><i class="fas fa-search"></i></button>
+                    </div>
+                </div>
+
+                <div
+                    class="col-12 col-md-5 d-flex justify-content-center justify-content-md-end align-items-center gap-4">
+                    <div id="user-nav" class="d-none d-md-flex align-items-center gap-4"></div>
+                    <div class="cart-icon-container position-relative cursor-pointer text-dark d-none d-md-block"
+                        onclick="toggleCart()" style="font-size: 1.4rem; cursor: pointer;">
+
+                        <i class="fas fa-shopping-cart"></i>
+                        <span id="cart-count"
+                            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light p-1"
+                            style="font-size: 0.6rem;">0</span>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container my-5 flex-grow-1">
+        <div class="d-flex align-items-center gap-2 mb-4 border-bottom pb-3">
+            <i class="fas fa-heart text-danger fs-4"></i>
+            <h2 class="text-dark fw-bold m-0 h3">Meus Favoritos</h2>
+        </div>
+
+        <div id="favorites-container" class="row g-4">
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2 text-muted">Carregando seus favoritos...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer bg-white border-top py-4 text-center mt-auto">
+        <div class="container">
+            <p class="text-muted mb-1">© 2026 Professora Brenda Flores. Todos os direitos reservados.</p>
+        </div>
+    </footer>
+
+    <nav class="bottom-nav d-block d-md-none bg-white border-top fixed-bottom py-2 shadow-lg" style="z-index: 1050;">
+        <div class="d-flex justify-content-around align-items-center">
+
+            <a href="index.html" class="nav-item-mobile">
+                <i class="fas fa-store fs-5 mb-1"></i>
+                <span>Loja</span>
+            </a>
+
+            <a href="favoritos.html" class="nav-item-mobile active">
+                <i class="far fa-heart fs-5 mb-1"></i>
+                <span>Favoritos</span>
+            </a>
+
+            <a href="#" class="nav-item-mobile position-relative" onclick="toggleCart()">
+                <div class="position-relative">
+                    <i class="fas fa-shopping-cart fs-5 mb-1"></i>
+                    <span id="mobile-cart-count"
+                        class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"
+                        style="width:10px; height:10px; display:none;"></span>
+                </div>
+                <span>Carrinho</span>
+            </a>
+
+            <a href="meus-pedidos.html" class="nav-item-mobile">
+                <i class="fas fa-download fs-5 mb-1"></i>
+                <span>Baixar</span>
+            </a>
+
+        </div>
+    </nav>
+
+    <div id="cart-modal" class="cart-modal-overlay">
+        <div class="cart-modal" onclick="event.stopPropagation()">
+            <div class="p-3 bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="m-0">Seu Carrinho</h5>
+                <button onclick="toggleCart()" class="btn text-white fs-4 p-0">&times;</button>
+            </div>
+            <div id="cart-items-container" class="flex-grow-1 p-3 overflow-auto"></div>
+            <div class="p-3 border-top bg-light">
+                <div class="d-flex justify-content-between fw-bold fs-5 mb-3 text-dark">
+                    <span>Total:</span>
+                    <span id="cart-total-value">R$ 0,00</span>
+                </div>
+                <button id="btn-checkout-final" class="btn btn-primary w-100 fw-bold py-2"
+                    onclick="checkoutCart()">FINALIZAR COMPRA</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="product-detail-modal" class="modal-overlay" onclick="closeProductModal(event)" style="z-index: 2000;">
+        <div class="modal-content animate-up">
+            <button class="close-modal-btn" onclick="closeProductModal(event)">&times;</button>
+            <div class="modal-grid">
+                <div
+                    class="modal-image-container position-relative bg-light d-flex align-items-center justify-content-center">
+                    <img id="pm-img" src="" alt="Detalhe" class="img-fluid rounded" style="max-height:400px;">
+                </div>
+                <div class="modal-info">
+                    <span id="pm-category" class="badge bg-light text-primary border mb-2">Categoria</span>
+                    <h2 id="pm-title" class="fw-bold text-dark">Título</h2>
+                    <div id="pm-price-container" class="mb-3"></div>
+                    <div class="modal-description text-muted mb-4">
+                        <p id="pm-desc"></p>
+                    </div>
+                    <button id="pm-add-btn" class="btn btn-primary w-100 fw-bold text-uppercase">ADICIONAR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="./scripts/app.js"></script>
+    <script src="./scripts/cart.js"></script>
+</body>
+
+</html>
