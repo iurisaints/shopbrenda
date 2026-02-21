@@ -164,6 +164,8 @@ function startEditMode(id) {
     document.getElementById('p-price').value = product.price;
     document.getElementById('p-category').value = product.category;
     document.getElementById('p-desc').value = product.description;
+
+    console.log("Campos encontrados:", { idField, titleField, priceField, categoryField, descField, imageField });
     
     // obs: navegador nao deixa eu preencher o input type file por motivo de hack, entao deixo quieto
     
@@ -203,3 +205,4 @@ window.handleProductSubmit = handleProductSubmit;
 window.startEditMode = startEditMode;
 window.cancelEditMode = cancelEditMode;
 window.deleteProductItem = deleteProductItem;
+
