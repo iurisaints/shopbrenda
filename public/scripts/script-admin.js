@@ -93,6 +93,13 @@ async function handleProductSubmit(event) {
     const descField = document.getElementById('p-desc');
     const imageField = document.getElementById('p-image');
 
+    if (!idField) { alert("🚨 ERRO NO HTML: Falta o campo <input type='hidden' id='p-id'>"); return; }
+    if (!titleField) { alert("🚨 ERRO NO HTML: Falta o id='p-title' no campo de Título"); return; }
+    if (!priceField) { alert("🚨 ERRO NO HTML: Falta o id='p-price' no campo de Preço"); return; }
+    if (!categoryField) { alert("🚨 ERRO NO HTML: Falta o id='p-category' no campo de Categoria"); return; }
+    if (!descField) { alert("🚨 ERRO NO HTML: Falta o id='p-desc' no campo de Descrição"); return; }
+    if (!imageField) { alert("🚨 ERRO NO HTML: Falta o id='p-image' no campo de Imagem"); return; }
+
     // prevencao basica caso eu mude o html e esqueca o id
     if (!titleField || !priceField) {
         alert("erro: campos nao encontrados no html.");
@@ -205,4 +212,5 @@ window.handleProductSubmit = handleProductSubmit;
 window.startEditMode = startEditMode;
 window.cancelEditMode = cancelEditMode;
 window.deleteProductItem = deleteProductItem;
+
 
