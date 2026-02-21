@@ -1,7 +1,7 @@
-// essa url descobre sozinha se eu to testando no pc ou se ja ta no ar
+// usamos o "origin" para forçar uma URL absoluta e evitar os chiliques do Safari com rotas relativas
 const ADMIN_API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000/api'
-    : '/api';
+    : window.location.origin + '/api';
 
 // guardo os produtos aqui pra poder usar depois (tipo na hora de editar)
 let currentProducts = []; 
@@ -46,7 +46,6 @@ async function loadProductsList() {
         currentProducts.forEach(p => {
             const img = p.image_url || 'https://via.placeholder.com/50';
             const price = parseFloat(p.price).toFixed(2).replace('.', ',');
-            // se tiver oferta, bota um foguinho no titulo
             const titleDisplay = p.is_offer ? `🔥 ${p.title}` : p.title; 
 
             const item = document.createElement('div');
@@ -81,16 +80,14 @@ async function loadProductsList() {
 async function handleProductSubmit(event) {
     event.preventDefault();
 
-    // 1. catando todos os campos usando os IDs novos do HTML
     const idField = document.getElementById('p-id');
     const titleField = document.getElementById('p-title');
     const priceField = document.getElementById('p-price');
     const descField = document.getElementById('p-desc');
-    const imagesField = document.getElementById('p-images'); // mudou o ID!
-    const fileField = document.getElementById('p-file');     // novo!
-    const offerField = document.getElementById('p-offer');   // novo!
+    const imagesField = document.getElementById('p-images'); 
+    const fileField = document.getElementById('p-file');     
+    const offerField = document.getElementById('p-offer');   
 
-    // 2. a mágica das categorias: pega todos os checkboxes marcados e junta com vírgula
     const checkedCategories = Array.from(document.querySelectorAll('input[name="cat"]:checked'))
                                    .map(cb => cb.value)
                                    .join(', ');
@@ -105,24 +102,20 @@ async function handleProductSubmit(event) {
     btn.innerText = "ENVIANDO...";
     btn.disabled = true;
 
-    // 3. montando a mochila de dados (FormData)
     const formData = new FormData();
     formData.append('title', titleField.value);
     formData.append('price', priceField.value);
-    formData.append('category', checkedCategories); // manda as categorias juntinhas
+    formData.append('category', checkedCategories); 
     formData.append('description', descField.value);
     
-    // se o botão de oferta tiver marcado, manda 1 (true), senão manda 0 (false)
     if (offerField) {
         formData.append('is_offer', offerField.checked ? 1 : 0);
     }
 
-    // se subiu uma imagem de capa
     if (imagesField && imagesField.files.length > 0) {
         formData.append('image', imagesField.files[0]); 
     }
     
-    // se subiu o pdf do produto
     if (fileField && fileField.files.length > 0) {
         formData.append('file', fileField.files[0]);
     }
@@ -130,18 +123,20 @@ async function handleProductSubmit(event) {
     try {
         let res;
         const id = idField.value;
+        const token = localStorage.getItem('token'); 
 
-        if (id) {
-            res = await window.authFetch(`${ADMIN_API_URL}/products/${id}`, {
-                method: 'PUT',
-                body: formData 
-            });
-        } else {
-            res = await window.authFetch(`${ADMIN_API_URL}/products`, {
-                method: 'POST',
-                body: formData
-            });
-        }
+        const url = id ? `${ADMIN_API_URL}/products/${id}` : `${ADMIN_API_URL}/products`;
+        const method = id ? 'PUT' : 'POST';
+
+        // ATENÇÃO AQUI: Usando o fetch nativo diretamente para enviar os arquivos com segurança
+        res = await fetch(url, {
+            method: method,
+            headers: {
+                'Authorization': `Bearer ${token}`
+                // ZERO Content-Type aqui! Deixamos o navegador fazer a mágica do multipart/form-data
+            },
+            body: formData
+        });
 
         if (res.ok) {
             alert(id ? "produto atualizado!" : "produto criado com sucesso!");
@@ -171,15 +166,13 @@ function startEditMode(id) {
     document.getElementById('p-price').value = product.price;
     document.getElementById('p-desc').value = product.description || '';
     
-    // liga ou desliga o foguinho da oferta
     const offerField = document.getElementById('p-offer');
     if (offerField) offerField.checked = !!product.is_offer;
 
-    // varre todas as caixinhas de categoria e marca só as que o produto tem
     document.querySelectorAll('input[name="cat"]').forEach(cb => {
-        cb.checked = false; // desmarca tudo primeiro
+        cb.checked = false; 
         if (product.category && product.category.includes(cb.value)) {
-            cb.checked = true; // marca se achar o nome
+            cb.checked = true; 
         }
     });
     
@@ -196,7 +189,6 @@ function cancelEditMode() {
     document.getElementById('product-form').reset();
     document.getElementById('p-id').value = "";
     
-    // desmarca todas as categorias na marra
     document.querySelectorAll('input[name="cat"]').forEach(cb => cb.checked = false);
     
     document.getElementById('form-title').innerText = "+ Novo Produto";
@@ -214,7 +206,6 @@ async function deleteProductItem(id) {
     } catch (e) { alert("deu ruim ao excluir."); }
 }
 
-// exportando as funcoes pro html
 window.handleProductSubmit = handleProductSubmit;
 window.startEditMode = startEditMode;
 window.cancelEditMode = cancelEditMode;
