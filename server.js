@@ -29,6 +29,11 @@ app.use('/api/products', productRoutes); // /api/products
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/orders', require('./routes/orders'));
 
+// TESTE DE VIDA DO SERVIDOR
+app.get('/teste', (req, res) => {
+    res.send("<h1>BINGO! O servidor Node.js está vivo e respondendo!</h1>");
+});
+
 // ROTA DE DOWNLOAD (COM LOGS PARA DEBUG)
 app.get('/api/download/:filename', (req, res) => {
     const filename = req.params.filename;
@@ -69,3 +74,4 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor voando na porta ${PORT}`);
     console.log(`📂 Lendo arquivos da pasta: ${__dirname}`);
 });
+
