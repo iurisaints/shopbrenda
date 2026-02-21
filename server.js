@@ -1,35 +1,33 @@
-require('dotenv').config(); // Carrega variáveis do .env (se existir)
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const app = express();
+
+// Railway404
+app.use(express.static(__dirname));
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // Rotas Importadas
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
 
-const app = express();
-
 // Middlewares Globais
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(cors());
-
-// Pasta de Uploads Pública
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Serve o Frontend (HTML/CSS/JS da raiz)
 app.use(express.static(path.join(__dirname, '/')));
 
 // Definição das Rotas da API
 app.use('/api', authRoutes);      // /api/login, /api/register
 app.use('/api/products', productRoutes); // /api/products
-app.use('/api/orders', orderRoutes);     // /api/orders
 
-// Rota padrão para SPA (opcional, se usar React no futuro) ou 404
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/orders', require('./routes/orders'));
 
 // ROTA DE DOWNLOAD (COM LOGS PARA DEBUG)
 app.get('/api/download/:filename', (req, res) => {
@@ -67,7 +65,7 @@ app.get('/api/download/:filename', (req, res) => {
 
 // Inicialização
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando lindão na porta ${PORT}`);
-    console.log(`📂 Uploads em: ${path.join(__dirname, 'uploads')}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Servidor voando na porta ${PORT}`);
+    console.log(`📂 Lendo arquivos da pasta: ${__dirname}`);
 });
