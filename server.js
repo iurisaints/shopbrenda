@@ -5,8 +5,12 @@ const app = express();
 
 // Railway404
 app.use(express.static(__dirname));
+
+// Serve o Frontend (HTML/CSS/JS da raiz)
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Rotas Importadas
@@ -19,8 +23,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve o Frontend (HTML/CSS/JS da raiz)
-app.use(express.static(path.join(__dirname, '/')));
 
 // Definição das Rotas da API
 app.use('/api', authRoutes);      // /api/login, /api/register
@@ -74,4 +76,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor voando na porta ${PORT}`);
     console.log(`📂 Lendo arquivos da pasta: ${__dirname}`);
 });
+
 
