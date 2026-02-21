@@ -15,7 +15,7 @@ const pool = mysql.createPool({
 // Promisify para usar async/await
 const promisePool = pool.promise();
 // TESTE DE CONEXÃO DIRETA PARA O RAILWAY
-db.getConnection()
+pool.getConnection()
     .then(conn => {
         console.log("🟢 BINGO! Conectado ao banco de dados com sucesso!");
         conn.release();
@@ -27,4 +27,5 @@ db.getConnection()
 
 
 module.exports = promisePool;
+
 
