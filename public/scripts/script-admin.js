@@ -1,4 +1,9 @@
-const ADMIN_API_URL = 'http://localhost:3000/api'; 
+// essa url descobre sozinha se eu to testando no pc ou se ja ta no ar
+const ADMIN_API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000/api'
+    : '/api';
+
+// guardo os produtos aqui pra poder usar depois (tipo na hora de editar)
 let currentProducts = []; 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -6,63 +11,63 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initAdminPage() {
+    // vejo se a pessoa logou e tem um token guardado
     const token = localStorage.getItem('token');
     if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = 'login.html'; // nao tem token? rua
         return;
     }
+    
+    // as vezes o app.js demora a carregar, entao confirmo se a funcao existe
     if (typeof window.authFetch !== 'function') {
-        alert("Erro de sistema: authFetch não encontrado. Recarregue a página.");
+        alert("erro de sistema: authFetch não encontrado. recarregue a página.");
         return;
     }
+    
+    // se passou de tudo, carrega a vitrine do admin
     loadProductsList();
 }
 
-// --- CARREGAR LISTA ---
+// --- puxar a lista de produtos do banco ---
 async function loadProductsList() {
     const list = document.getElementById('admin-product-list');
     if (!list) return;
 
+    list.innerHTML = '<p style="text-align:center;">atualizando...</p>';
+
     try {
+        // o Date.now() no final é um truquezinho pro navegador nao usar cache e sempre buscar do banco
         const res = await fetch(`${ADMIN_API_URL}/products?t=${Date.now()}`);
         currentProducts = await res.json(); 
 
         list.innerHTML = '';
 
+        // se voltar vazio
         if (!currentProducts || currentProducts.length === 0) {
-            list.innerHTML = `
-                <div class="text-center py-4 bg-light rounded">
-                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">Nenhum produto cadastrado ainda.</p>
-                </div>`;
+            list.innerHTML = '<p style="text-align:center; color:#666;">nenhum produto cadastrado.</p>';
             return;
         }
 
+        // monta a lista no html item por item
         currentProducts.forEach(p => {
             const img = p.image_url || 'https://via.placeholder.com/50';
             const price = parseFloat(p.price).toFixed(2).replace('.', ',');
-            const isOffer = p.is_offer == 1 ? '<span class="badge bg-danger ms-2">OFERTA</span>' : '';
-            
-            // Verifica se tem arquivo (visual apenas para o admin saber)
-            const hasFile = p.file_url ? '<span class="badge bg-success ms-1"><i class="fas fa-file"></i> PDF</span>' : '<span class="badge bg-secondary ms-1">Sem Arq.</span>';
-            
-            let catsDisplay = p.category ? p.category.replace(/,/g, ', ') : 'Sem categoria';
 
             const item = document.createElement('div');
             item.className = 'product-list-item';
             item.innerHTML = `
-                <div class="d-flex align-items-center gap-3">
+                <div class="product-info">
                     <img src="${img}" class="product-img">
                     <div>
-                        <strong class="text-dark d-block">${p.title} ${isOffer} ${hasFile}</strong>
-                        <small class="text-muted">${catsDisplay} • <strong>R$ ${price}</strong></small>
+                        <strong style="color:#0f172a; display:block;">${p.title}</strong>
+                        <span style="font-size:0.85rem; color:#64748b;">${p.category} • R$ ${price}</span>
                     </div>
                 </div>
-                <div class="d-flex gap-2">
-                    <button onclick="startEditMode(${p.id})" class="btn btn-outline-primary btn-sm" title="Editar">
+                <div class="actions">
+                    <button onclick="startEditMode(${p.id})" class="btn-icon edit-btn" title="Editar">
                         <i class="fas fa-pencil-alt"></i>
                     </button>
-                    <button onclick="deleteProductItem(${p.id})" class="btn btn-outline-danger btn-sm" title="Excluir">
+                    <button onclick="deleteProductItem(${p.id})" class="btn-icon delete-btn" title="Excluir">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -72,139 +77,128 @@ async function loadProductsList() {
 
     } catch (error) {
         console.error(error);
-        list.innerHTML = `<div class="alert alert-danger">Erro ao carregar lista.</div>`;
+        list.innerHTML = `<p style="color:red; text-align:center;">erro ao carregar a lista.</p>`;
     }
 }
 
-
-// --- SALVAR (CRIAR OU EDITAR) ---
+// --- hora de salvar (ou editar) mandando arquivo junto ---
 async function handleProductSubmit(event) {
-    event.preventDefault();
+    event.preventDefault(); // segura o reload da pagina
 
-    const id = document.getElementById('p-id').value;
-    const btn = document.getElementById('btn-save');
-    const originalText = btn.innerHTML;
-    
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ENVIANDO...';
-    btn.disabled = true;
+    // 1. catando todos os campos do form
+    const idField = document.getElementById('p-id');
+    const titleField = document.getElementById('p-title');
+    const priceField = document.getElementById('p-price');
+    const categoryField = document.getElementById('p-category');
+    const descField = document.getElementById('p-desc');
+    const imageField = document.getElementById('p-image');
 
-    const formData = new FormData();
-    formData.append('title', document.getElementById('p-title').value);
-    formData.append('price', document.getElementById('p-price').value);
-    formData.append('description', document.getElementById('p-desc').value);
-    
-    // Oferta
-    formData.append('is_offer', document.getElementById('p-offer').checked);
-
-    // Categorias
-    const checkedCats = Array.from(document.querySelectorAll('input[name="cat"]:checked'))
-                             .map(cb => cb.value);
-    if (checkedCats.length > 3) {
-        alert("Por favor, selecione no máximo 3 categorias.");
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+    // prevencao basica caso eu mude o html e esqueca o id
+    if (!titleField || !priceField) {
+        alert("erro: campos nao encontrados no html.");
         return;
     }
-    formData.append('category', checkedCats.join(','));
 
-    // 1. IMAGENS MÚLTIPLAS
-    const imageInput = document.getElementById('p-images');
-    if (imageInput.files.length > 0) {
-        for (let i = 0; i < imageInput.files.length; i++) {
-            formData.append('images', imageInput.files[i]); 
-        }
+    const btn = document.getElementById('btn-save');
+    const originalText = btn.innerText;
+    btn.innerText = "ENVIANDO...";
+    btn.disabled = true;
+
+    // 2. como tem arquivo (imagem), tenho q usar o FormData em vez de json
+    const formData = new FormData();
+    formData.append('title', titleField.value);
+    formData.append('price', priceField.value);
+    formData.append('category', categoryField.value);
+    formData.append('description', descField.value);
+
+    // se o cara subiu uma foto, adiciona ela na mochila
+    if (imageField.files.length > 0) {
+        formData.append('image', imageField.files[0]);
     }
-
-    // 2. ARQUIVO DIGITAL (PDF/ZIP) - O NOVO CAMPO
-    const fileInput = document.getElementById('p-file');
-    if (fileInput.files.length > 0) {
-        formData.append('productFile', fileInput.files[0]);
-    }
-
-    const url = id ? `${ADMIN_API_URL}/products/${id}` : `${ADMIN_API_URL}/products`;
-    const method = id ? 'PUT' : 'POST';
 
     try {
-        const res = await window.authFetch(url, { method: method, body: formData });
-        
-        if (res.ok) {
-            alert(id ? "Produto atualizado!" : "Produto criado com sucesso!");
-            cancelEditMode();
-            loadProductsList();
+        let res;
+        const id = idField.value;
+
+        // se tem id, é edicao. se nao, é produto novo
+        if (id) {
+            res = await window.authFetch(`${ADMIN_API_URL}/products/${id}`, {
+                method: 'PUT',
+                body: formData 
+            });
         } else {
-            const err = await res.json();
-            alert("Erro ao salvar: " + (err.error || "Erro desconhecido"));
+            res = await window.authFetch(`${ADMIN_API_URL}/products`, {
+                method: 'POST',
+                body: formData
+            });
         }
-    } catch (e) { 
-        console.error(e);
-        alert("Erro de conexão.");
-    } finally { 
-        btn.disabled = false; 
-        btn.innerHTML = originalText; 
+
+        if (res.ok) {
+            alert(id ? "produto atualizado!" : "produto criado com sucesso!");
+            cancelEditMode(); // limpa o form
+            loadProductsList(); // atualiza a vitrine
+            imageField.value = ''; // zera o file input
+        } else {
+            const errData = await res.json();
+            alert("erro: " + (errData.error || "nao sei oq rolou"));
+        }
+
+    } catch (error) {
+        console.error(error);
+        alert("falha de conexão.");
+    } finally {
+        // volta o botao ao normal
+        btn.innerText = originalText;
+        btn.disabled = false;
     }
 }
 
-// --- MODO DE EDIÇÃO ---
+// --- joga os dados pro form quando clico no lapis ---
 function startEditMode(id) {
+    // acha o produto no array que eu guardei lá em cima
     const product = currentProducts.find(p => p.id === id);
     if (!product) return;
 
     document.getElementById('p-id').value = product.id;
     document.getElementById('p-title').value = product.title;
     document.getElementById('p-price').value = product.price;
+    document.getElementById('p-category').value = product.category;
     document.getElementById('p-desc').value = product.description;
-    document.getElementById('p-offer').checked = (product.is_offer == 1);
-
-    // Limpa e marca categorias
-    document.querySelectorAll('input[name="cat"]').forEach(cb => cb.checked = false);
-    if (product.category) {
-        const cats = product.category.split(',');
-        cats.forEach(c => {
-            const cb = document.querySelector(`input[name="cat"][value="${c.trim()}"]`);
-            if (cb) cb.checked = true;
-        });
-    }
-
-    // Visual
-    document.getElementById('form-title').innerText = "Editando: " + product.title;
-    const btnSave = document.getElementById('btn-save');
-    btnSave.innerHTML = '<i class="fas fa-sync"></i> ATUALIZAR PRODUTO';
-    btnSave.classList.remove('btn-primary');
-    btnSave.classList.add('btn-warning');
     
+    // obs: navegador nao deixa eu preencher o input type file por motivo de hack, entao deixo quieto
+    
+    // muda a cara da ui pra modo de edicao
+    document.getElementById('form-title').innerText = "editando: " + product.title;
+    document.getElementById('btn-save').innerText = "ATUALIZAR";
+    document.getElementById('btn-save').style.background = "#f59e0b"; // laranjinha
     document.getElementById('btn-cancel').style.display = "block";
     
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // rola a pagina suave ate o form
+    document.querySelector('.admin-wrapper').scrollIntoView({ behavior: 'smooth' });
 }
 
+// --- desiste da edicao e limpa tudo ---
 function cancelEditMode() {
     document.getElementById('product-form').reset();
     document.getElementById('p-id').value = "";
+    document.getElementById('p-image').value = "";
     
-    document.getElementById('form-title').innerText = "+ Novo Produto";
-    const btnSave = document.getElementById('btn-save');
-    btnSave.innerHTML = '<i class="fas fa-save"></i> SALVAR PRODUTO';
-    btnSave.classList.remove('btn-warning');
-    btnSave.classList.add('btn-primary');
-    
+    document.getElementById('form-title').innerText = "+ novo produto";
+    document.getElementById('btn-save').innerText = "CADASTRAR PRODUTO";
+    document.getElementById('btn-save').style.background = "var(--red-bordo)";
     document.getElementById('btn-cancel').style.display = "none";
-    
-    const collapseEl = document.getElementById('catCollapse');
-    if (collapseEl.classList.contains('show')) {
-        const bsCollapse = new bootstrap.Collapse(collapseEl, {toggle: false});
-        bsCollapse.hide();
-    }
 }
 
-// --- DELETAR ---
+// --- matar um produto ---
 async function deleteProductItem(id) {
-    if (!confirm("Tem certeza?")) return;
+    if (!confirm("certeza absoluta q quer apagar?")) return;
     try {
         const res = await window.authFetch(`${ADMIN_API_URL}/products/${id}`, { method: 'DELETE' });
         if (res.ok) loadProductsList();
-    } catch (e) { alert("Erro ao excluir."); }
+    } catch (e) { alert("deu ruim ao excluir."); }
 }
 
+// deixando as funcoes publicas pro html poder chamar pelo onclick
 window.handleProductSubmit = handleProductSubmit;
 window.startEditMode = startEditMode;
 window.cancelEditMode = cancelEditMode;
