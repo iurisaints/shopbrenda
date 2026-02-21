@@ -1,11 +1,21 @@
 const mysql = require('mysql2/promise');
 
+const dbHost = process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
+const dbPort = process.env.MYSQLPORT || process.env.DB_PORT || 3306;
+const dbUser = process.env.MYSQLUSER || process.env.DB_USER || 'root';
+const dbPassword = process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '';
+const dbName = process.env.MYSQLDATABASE || process.env.DB_NAME || 'railway';
+
+console.log("-------------------------------------------------");
+console.log(`Tentando conectar no banco -> HOST: ${dbHost} | PORTA: ${dbPort} | USER: ${dbUser} | BANCO: ${dbName}`);
+console.log("-------------------------------------------------");
+
 const db = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT, 
+    host: dbHost,
+    user: dbUser,
+    password: dbPassword,
+    database: dbName,
+    port: dbPort,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -14,13 +24,11 @@ const db = mysql.createPool({
 db.getConnection()
     .then(conn => {
         console.log("🟢 BINGO! Conexão com o banco de dados MySQL estabelecida com sucesso!");
-        conn.release(); 
+        conn.release();
     })
     .catch(err => {
         console.log("🔴 ALERTA VERMELHO! O servidor não conseguiu conectar ao banco de dados.");
-        console.error("👉 MOTIVO EXATO:", err.message);
-        console.log("👉 DICA: Verifique as variáveis DB_HOST, DB_USER, DB_PASSWORD, DB_NAME e DB_PORT no Railway.");
+        console.error("👉 MOTIVO EXATO:", err.code, err.message);
     });
 
 module.exports = db;
-
