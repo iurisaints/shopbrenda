@@ -11,20 +11,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initAdminPage() {
-    // vejo se a pessoa logou e tem um token guardado
     const token = localStorage.getItem('token');
     if (!token) {
-        window.location.href = 'login.html'; // nao tem token? rua
+        window.location.href = 'login.html'; 
         return;
     }
     
-    // as vezes o app.js demora a carregar, entao confirmo se a funcao existe
     if (typeof window.authFetch !== 'function') {
         alert("erro de sistema: authFetch não encontrado. recarregue a página.");
         return;
     }
     
-    // se passou de tudo, carrega a vitrine do admin
     loadProductsList();
 }
 
@@ -36,22 +33,21 @@ async function loadProductsList() {
     list.innerHTML = '<p style="text-align:center;">atualizando...</p>';
 
     try {
-        // o Date.now() no final é um truquezinho pro navegador nao usar cache e sempre buscar do banco
         const res = await fetch(`${ADMIN_API_URL}/products?t=${Date.now()}`);
         currentProducts = await res.json(); 
 
         list.innerHTML = '';
 
-        // se voltar vazio
         if (!currentProducts || currentProducts.length === 0) {
             list.innerHTML = '<p style="text-align:center; color:#666;">nenhum produto cadastrado.</p>';
             return;
         }
 
-        // monta a lista no html item por item
         currentProducts.forEach(p => {
             const img = p.image_url || 'https://via.placeholder.com/50';
             const price = parseFloat(p.price).toFixed(2).replace('.', ',');
+            // se tiver oferta, bota um foguinho no titulo
+            const titleDisplay = p.is_offer ? `🔥 ${p.title}` : p.title; 
 
             const item = document.createElement('div');
             item.className = 'product-list-item';
@@ -59,8 +55,8 @@ async function loadProductsList() {
                 <div class="product-info">
                     <img src="${img}" class="product-img">
                     <div>
-                        <strong style="color:#0f172a; display:block;">${p.title}</strong>
-                        <span style="font-size:0.85rem; color:#64748b;">${p.category} • R$ ${price}</span>
+                        <strong style="color:#0f172a; display:block;">${titleDisplay}</strong>
+                        <span style="font-size:0.85rem; color:#64748b;">${p.category || 'Sem Categoria'} • R$ ${price}</span>
                     </div>
                 </div>
                 <div class="actions">
@@ -83,26 +79,24 @@ async function loadProductsList() {
 
 // --- hora de salvar (ou editar) mandando arquivo junto ---
 async function handleProductSubmit(event) {
-    event.preventDefault(); // segura o reload da pagina
+    event.preventDefault();
 
-    // 1. catando todos os campos do form
+    // 1. catando todos os campos usando os IDs novos do HTML
     const idField = document.getElementById('p-id');
     const titleField = document.getElementById('p-title');
     const priceField = document.getElementById('p-price');
-    const categoryField = document.getElementById('p-category');
     const descField = document.getElementById('p-desc');
-    const imageField = document.getElementById('p-image');
+    const imagesField = document.getElementById('p-images'); // mudou o ID!
+    const fileField = document.getElementById('p-file');     // novo!
+    const offerField = document.getElementById('p-offer');   // novo!
 
-    if (!idField) { alert("🚨 ERRO NO HTML: Falta o campo <input type='hidden' id='p-id'>"); return; }
-    if (!titleField) { alert("🚨 ERRO NO HTML: Falta o id='p-title' no campo de Título"); return; }
-    if (!priceField) { alert("🚨 ERRO NO HTML: Falta o id='p-price' no campo de Preço"); return; }
-    if (!categoryField) { alert("🚨 ERRO NO HTML: Falta o id='p-category' no campo de Categoria"); return; }
-    if (!descField) { alert("🚨 ERRO NO HTML: Falta o id='p-desc' no campo de Descrição"); return; }
-    if (!imageField) { alert("🚨 ERRO NO HTML: Falta o id='p-image' no campo de Imagem"); return; }
+    // 2. a mágica das categorias: pega todos os checkboxes marcados e junta com vírgula
+    const checkedCategories = Array.from(document.querySelectorAll('input[name="cat"]:checked'))
+                                   .map(cb => cb.value)
+                                   .join(', ');
 
-    // prevencao basica caso eu mude o html e esqueca o id
     if (!titleField || !priceField) {
-        alert("erro: campos nao encontrados no html.");
+        alert("erro: campos principais não encontrados no html.");
         return;
     }
 
@@ -111,23 +105,32 @@ async function handleProductSubmit(event) {
     btn.innerText = "ENVIANDO...";
     btn.disabled = true;
 
-    // 2. como tem arquivo (imagem), tenho q usar o FormData em vez de json
+    // 3. montando a mochila de dados (FormData)
     const formData = new FormData();
     formData.append('title', titleField.value);
     formData.append('price', priceField.value);
-    formData.append('category', categoryField.value);
+    formData.append('category', checkedCategories); // manda as categorias juntinhas
     formData.append('description', descField.value);
+    
+    // se o botão de oferta tiver marcado, manda 1 (true), senão manda 0 (false)
+    if (offerField) {
+        formData.append('is_offer', offerField.checked ? 1 : 0);
+    }
 
-    // se o cara subiu uma foto, adiciona ela na mochila
-    if (imageField.files.length > 0) {
-        formData.append('image', imageField.files[0]);
+    // se subiu uma imagem de capa
+    if (imagesField && imagesField.files.length > 0) {
+        formData.append('image', imagesField.files[0]); 
+    }
+    
+    // se subiu o pdf do produto
+    if (fileField && fileField.files.length > 0) {
+        formData.append('file', fileField.files[0]);
     }
 
     try {
         let res;
         const id = idField.value;
 
-        // se tem id, é edicao. se nao, é produto novo
         if (id) {
             res = await window.authFetch(`${ADMIN_API_URL}/products/${id}`, {
                 method: 'PUT',
@@ -142,19 +145,17 @@ async function handleProductSubmit(event) {
 
         if (res.ok) {
             alert(id ? "produto atualizado!" : "produto criado com sucesso!");
-            cancelEditMode(); // limpa o form
-            loadProductsList(); // atualiza a vitrine
-            imageField.value = ''; // zera o file input
+            cancelEditMode(); 
+            loadProductsList(); 
         } else {
             const errData = await res.json();
-            alert("erro: " + (errData.error || "nao sei oq rolou"));
+            alert("erro: " + (errData.error || "problema ao salvar no servidor"));
         }
 
     } catch (error) {
         console.error(error);
         alert("falha de conexão.");
     } finally {
-        // volta o botao ao normal
         btn.innerText = originalText;
         btn.disabled = false;
     }
@@ -162,27 +163,31 @@ async function handleProductSubmit(event) {
 
 // --- joga os dados pro form quando clico no lapis ---
 function startEditMode(id) {
-    // acha o produto no array que eu guardei lá em cima
     const product = currentProducts.find(p => p.id === id);
     if (!product) return;
 
     document.getElementById('p-id').value = product.id;
     document.getElementById('p-title').value = product.title;
     document.getElementById('p-price').value = product.price;
-    document.getElementById('p-category').value = product.category;
-    document.getElementById('p-desc').value = product.description;
+    document.getElementById('p-desc').value = product.description || '';
+    
+    // liga ou desliga o foguinho da oferta
+    const offerField = document.getElementById('p-offer');
+    if (offerField) offerField.checked = !!product.is_offer;
 
-    console.log("Campos encontrados:", { idField, titleField, priceField, categoryField, descField, imageField });
+    // varre todas as caixinhas de categoria e marca só as que o produto tem
+    document.querySelectorAll('input[name="cat"]').forEach(cb => {
+        cb.checked = false; // desmarca tudo primeiro
+        if (product.category && product.category.includes(cb.value)) {
+            cb.checked = true; // marca se achar o nome
+        }
+    });
     
-    // obs: navegador nao deixa eu preencher o input type file por motivo de hack, entao deixo quieto
-    
-    // muda a cara da ui pra modo de edicao
     document.getElementById('form-title').innerText = "editando: " + product.title;
-    document.getElementById('btn-save').innerText = "ATUALIZAR";
-    document.getElementById('btn-save').style.background = "#f59e0b"; // laranjinha
+    document.getElementById('btn-save').innerHTML = '<i class="fas fa-save"></i> ATUALIZAR';
+    document.getElementById('btn-save').classList.replace('btn-primary', 'btn-warning'); 
     document.getElementById('btn-cancel').style.display = "block";
     
-    // rola a pagina suave ate o form
     document.querySelector('.admin-wrapper').scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -190,11 +195,13 @@ function startEditMode(id) {
 function cancelEditMode() {
     document.getElementById('product-form').reset();
     document.getElementById('p-id').value = "";
-    document.getElementById('p-image').value = "";
     
-    document.getElementById('form-title').innerText = "+ novo produto";
-    document.getElementById('btn-save').innerText = "CADASTRAR PRODUTO";
-    document.getElementById('btn-save').style.background = "var(--red-bordo)";
+    // desmarca todas as categorias na marra
+    document.querySelectorAll('input[name="cat"]').forEach(cb => cb.checked = false);
+    
+    document.getElementById('form-title').innerText = "+ Novo Produto";
+    document.getElementById('btn-save').innerHTML = '<i class="fas fa-save"></i> SALVAR PRODUTO';
+    document.getElementById('btn-save').classList.replace('btn-warning', 'btn-primary');
     document.getElementById('btn-cancel').style.display = "none";
 }
 
@@ -207,10 +214,8 @@ async function deleteProductItem(id) {
     } catch (e) { alert("deu ruim ao excluir."); }
 }
 
-// deixando as funcoes publicas pro html poder chamar pelo onclick
+// exportando as funcoes pro html
 window.handleProductSubmit = handleProductSubmit;
 window.startEditMode = startEditMode;
 window.cancelEditMode = cancelEditMode;
 window.deleteProductItem = deleteProductItem;
-
-
