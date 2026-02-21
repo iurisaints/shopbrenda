@@ -4,10 +4,10 @@ const db = require('../config/db');
 const upload = require('../middleware/upload');
 const authenticateToken = require('../middleware/auth');
 
-// Configuração dos campos de upload (Imagens + PDF)
+// 1. A MÁGICA AQUI: Os nomes exatos que o front-end envia ('image' e 'file')
 const uploadFields = upload.fields([
-    { name: 'images', maxCount: 5 }, 
-    { name: 'productFile', maxCount: 1 }
+    { name: 'image', maxCount: 1 }, // A foto de capa
+    { name: 'file', maxCount: 1 }   // O arquivo PDF/Digital
 ]);
 
 // --- LISTAR PRODUTOS (GET) ---
@@ -45,23 +45,25 @@ router.get('/', async (req, res) => {
 
 // --- CRIAR PRODUTO (POST - ADMIN) ---
 router.post('/', authenticateToken, uploadFields, async (req, res) => {
+    // Verifica se é admin
     if (req.user.role !== 'admin') return res.sendStatus(403);
 
     const { title, price, category, description, is_offer } = req.body;
     
-    // Tratamento de Arquivos
     let coverUrl = 'https://via.placeholder.com/150';
-    let galleryPaths = [];
     let fileUrl = null;
 
-    if (req.files['images']) {
-        galleryPaths = req.files['images'].map(file => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`);
-        coverUrl = galleryPaths[0]; 
+    // 2. Se o front-end mandou a foto de capa, salva a URL dela
+    if (req.files && req.files['image']) {
+        coverUrl = `${req.protocol}://${req.get('host')}/uploads/${req.files['image'][0].filename}`;
     }
-    if (req.files['productFile']) {
-        fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.files['productFile'][0].filename}`;
+    
+    // 3. Se o front-end mandou o arquivo digital, salva a URL dele
+    if (req.files && req.files['file']) {
+        fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.files['file'][0].filename}`;
     }
 
+    // Transforma o switch de oferta em número (1 ou 0) para o banco de dados
     const offerValue = (is_offer === 'true' || is_offer === '1') ? 1 : 0;
 
     try {
@@ -70,16 +72,9 @@ router.post('/', authenticateToken, uploadFields, async (req, res) => {
             [title, price, category, description, coverUrl, fileUrl, offerValue]
         );
 
-        const productId = result.insertId;
-
-        // Salva Galeria
-        if (galleryPaths.length > 0) {
-            const values = galleryPaths.map(url => [productId, url]);
-            await db.query("INSERT INTO product_images (product_id, image_url) VALUES ?", [values]);
-        }
-
-        res.json({ message: "Produto criado!", id: productId });
+        res.json({ message: "Produto criado com sucesso!", id: result.insertId });
     } catch (err) {
+        console.error("Erro ao salvar no banco:", err);
         res.status(500).json({ error: err.message });
     }
 });
