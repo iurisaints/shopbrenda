@@ -486,10 +486,53 @@ function renderOrders() {
     });
 }
 
+// ==========================================
+// RENDERIZA MENU MOBILE DINAMICAMENTE
+// ==========================================
+function renderMobileAuthButton() {
+    // Pegue a classe ou ID exato da sua barra de navegação inferior
+    // Exemplo: se no HTML for <nav class="bottom-nav">, usamos '.bottom-nav'
+    const bottomNav = document.querySelector('.bottom-nav'); 
+    
+    // Se a página não tiver menu mobile, não faz nada
+    if (!bottomNav) return;
+
+    // Se já tivermos injetado o botão antes, removemos para não duplicar
+    const existingBtn = document.getElementById('mobile-dynamic-auth');
+    if (existingBtn) existingBtn.remove();
+
+    const token = localStorage.getItem('token');
+    const authLink = document.createElement('a');
+    authLink.id = 'mobile-dynamic-auth';
+    
+    // ATENÇÃO: Coloque aqui a mesma classe que os outros itens do menu usam (ex: 'nav-item')
+    authLink.className = 'nav-item text-center text-decoration-none'; 
+    authLink.style.color = '#6c757d'; // cor do texto desativado (ajuste pro seu CSS)
+
+    if (token) {
+        // Logado
+        authLink.href = 'meus-pedidos.html';
+        authLink.innerHTML = `
+            <i class="fas fa-user d-block mb-1"></i>
+            <span style="font-size: 0.75rem;">Perfil</span>
+        `;
+    } else {
+        // Deslogado
+        authLink.href = 'login.html';
+        authLink.innerHTML = `
+            <i class="fas fa-sign-in-alt d-block mb-1"></i>
+            <span style="font-size: 0.75rem;">Entrar</span>
+        `;
+    }
+
+    bottomNav.appendChild(authLink);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     setupGlobalEvents();
     checkUrlParams();
+    renderMobileAuthButton();
     if (document.getElementById('products-container') && !window.location.search) loadProducts();
     if (document.getElementById('favorites-container')) loadFavoritesPage();
 });

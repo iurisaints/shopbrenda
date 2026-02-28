@@ -374,6 +374,66 @@ button { font-family: inherit; cursor: pointer; }
     text-align: center;
 }
 
+/* ========================================= */
+/* AJUSTES MOBILE: CATEGORIAS E MODAL        */
+/* ========================================= */
+
+@media (max-width: 768px) {
+    /* 2. Arruma a categoria no card de produto */
+    .category-badge {
+        display: inline-block;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 4px 8px;
+        margin-bottom: 8px;
+        font-size: 0.75rem;
+    }
+
+    /* 3. Salva a vida do Modal no Mobile */
+    .modal-dialog {
+        margin: 10px; /* Descola o modal das bordas da tela */
+        align-items: center;
+        min-height: calc(100vh - 20px); 
+    }
+    
+    .modal-content {
+        border-radius: 16px;
+        max-height: 85vh; /* O modal nunca vai ser maior que 85% da tela */
+        overflow-y: auto; /* Se o texto for grande, cria barra de rolagem por dentro! */
+        padding: 10px;
+    }
+
+    /* Ajusta a imagem dentro do modal para não vazar */
+    .modal-body img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+
+    /* Posiciona o "X" de fechar num lugar absoluto para não quebrar o layout */
+    .modal-header {
+        position: relative;
+        padding-top: 25px;
+    }
+    .modal-header .btn-close {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+    }
+    
+    /* Garante que o botão de Adicionar ao Carrinho não fique cortado */
+    .modal-footer {
+        padding-bottom: 20px;
+    }
+    .modal-footer .btn {
+        width: 100%; /* Botão grandão e clicável no celular */
+    }
+}
+
 /* Animação de entrada suave */
 @keyframes zoomIn {
     from { opacity: 0; transform: scale(0.95); }

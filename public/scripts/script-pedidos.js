@@ -34,8 +34,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             let statusLabel = 'Pendente';
             let actionBtnHtml = ''; 
             
-            if (order.status === 'paid') {
-                badgeClass = 'bg-success';
+            // Verifica se está pago
+            if (order.status === 'paid' || order.status === 'approved') {
+                badgeClass = 'bg-success text-white';
                 statusLabel = 'Pago';
 
                 const fileUrl = order.items && order.items.length > 0 ? order.items[0].file_url : null;
@@ -52,7 +53,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     actionBtnHtml = `<button disabled class="btn btn-secondary w-100">Arquivo Indisponível no Servidor</button>`;
                 }
             } else {
-                actionBtnHtml = `<button disabled class="btn btn-secondary w-100">Aguardando Pagamento</button>`;
+                // Se NÃO está pago, mostra o botão do Mercado Pago (se o link existir)
+                if (order.payment_link) {
+                    actionBtnHtml = `
+                        <a href="${order.payment_link}" target="_blank" class="btn btn-warning w-100 fw-bold border-dark text-dark">
+                            <i class="fas fa-qrcode me-2"></i> PAGAR AGORA
+                        </a>`;
+                } else {
+                    actionBtnHtml = `<button disabled class="btn btn-secondary w-100 border-0">Aguardando Pagamento</button>`;
+                }
             }
 
             const itemsHtml = order.items 
@@ -64,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : `<li class="list-group-item border-0 px-0 text-muted">Detalhes indisponíveis</li>`;
 
             const col = document.createElement('div');
-            col.className = 'col-md-6 col-lg-4';
+            col.className = 'col-md-6 col-lg-4 mb-4';
             col.innerHTML = `
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
