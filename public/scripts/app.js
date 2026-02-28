@@ -487,52 +487,43 @@ function renderOrders() {
 }
 
 // ==========================================
-// RENDERIZA MENU MOBILE DINAMICAMENTE
+// RENDERIZA BOTÃO DE LOGIN NO TOPO (DESLOGADO)
 // ==========================================
-function renderMobileAuthButton() {
-    // Pegue a classe ou ID exato da sua barra de navegação inferior
-    // Exemplo: se no HTML for <nav class="bottom-nav">, usamos '.bottom-nav'
-    const bottomNav = document.querySelector('.bottom-nav'); 
-    
-    // Se a página não tiver menu mobile, não faz nada
-    if (!bottomNav) return;
-
-    // Se já tivermos injetado o botão antes, removemos para não duplicar
-    const existingBtn = document.getElementById('mobile-dynamic-auth');
-    if (existingBtn) existingBtn.remove();
-
+function renderTopLoginButton() {
     const token = localStorage.getItem('token');
-    const authLink = document.createElement('a');
-    authLink.id = 'mobile-dynamic-auth';
+    const placeholder = document.getElementById('auth-placeholder');
     
-    // ATENÇÃO: Coloque aqui a mesma classe que os outros itens do menu usam (ex: 'nav-item')
-    authLink.className = 'nav-item text-center text-decoration-none'; 
-    authLink.style.color = '#6c757d'; // cor do texto desativado (ajuste pro seu CSS)
+    // Se o placeholder não existir na página, ou se a pessoa JÁ estiver logada, ignora.
+    if (!placeholder || token) return;
 
-    if (token) {
-        // Logado
-        authLink.href = 'meus-pedidos.html';
-        authLink.innerHTML = `
-            <i class="fas fa-user d-block mb-1"></i>
-            <span style="font-size: 0.75rem;">Perfil</span>
-        `;
-    } else {
-        // Deslogado
-        authLink.href = 'login.html';
-        authLink.innerHTML = `
-            <i class="fas fa-sign-in-alt d-block mb-1"></i>
-            <span style="font-size: 0.75rem;">Entrar</span>
-        `;
-    }
-
-    bottomNav.appendChild(authLink);
+    // Se estiver deslogado, injeta o botão bonitinho dentro do espaço dele
+    placeholder.innerHTML = `
+        <a href="login.html" class="btn btn-outline-primary btn-sm fw-bold">
+            <i class="fas fa-sign-in-alt"></i> Entrar
+        </a>
+    `;
 }
+
+
+function handleLogout() {
+    if (confirm("Tem certeza que deseja sair da sua conta?")) {
+        // apaga a chave (token) do navegador
+        localStorage.removeItem('token');
+        
+        // manda o usuário de volta para a vitrine da loja
+        window.location.href = 'index.html';
+    }
+}
+
+// exporta a função para o HTML conseguir chamá-la no onclick
+window.handleLogout = handleLogout;
+
 
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     setupGlobalEvents();
     checkUrlParams();
-    renderMobileAuthButton();
+    renderTopLoginButton();
     if (document.getElementById('products-container') && !window.location.search) loadProducts();
     if (document.getElementById('favorites-container')) loadFavoritesPage();
 });

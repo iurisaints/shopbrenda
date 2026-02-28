@@ -3,8 +3,8 @@ const mysql = require('mysql2/promise');
 const dbHost = process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
 const dbPort = process.env.MYSQLPORT || process.env.DB_PORT || 3306;
 const dbUser = process.env.MYSQLUSER || process.env.DB_USER || 'root';
-const dbPassword = process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '';
-const dbName = process.env.MYSQLDATABASE || process.env.DB_NAME || 'railway';
+const dbPassword = process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || 'root';
+const dbName = process.env.MYSQLDATABASE || process.env.DB_NAME || 'brenda_shop';
 
 const db = mysql.createPool({
     host: dbHost,

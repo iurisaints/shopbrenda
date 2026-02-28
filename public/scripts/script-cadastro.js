@@ -11,7 +11,11 @@ async function handleRegister(e) {
     const password = document.getElementById('reg-password').value;
     const confirmPassword = document.getElementById('reg-confirm-password').value;
 
-    // verifica se as senhas são iguais antes de enviar
+    if (password.length < 6) {
+        alert("🔒 Por segurança, sua senha deve ter no mínimo 6 caracteres.");
+        return; // Interrompe tudo aqui, nem tenta mandar pro servidor
+    }
+
     if (password !== confirmPassword) {
         alert("As senhas não coincidem!");
         return;
