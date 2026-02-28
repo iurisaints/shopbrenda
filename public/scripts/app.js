@@ -498,7 +498,7 @@ function renderTopLoginButton() {
 
     // Se estiver deslogado, injeta o botão bonitinho dentro do espaço dele
     placeholder.innerHTML = `
-        <a href="login.html" class="btn btn-outline-primary btn-sm fw-bold">
+        <a href="login.html" class="btn btn-outline-primary btn-sm fw-bold d-md-none">
             <i class="fas fa-sign-in-alt"></i> Entrar
         </a>
     `;

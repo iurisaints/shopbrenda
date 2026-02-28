@@ -13,24 +13,27 @@
 <body class="bg-light d-flex flex-column min-vh-100">
 
 
-
     <header class="main-header sticky-top bg-white border-bottom shadow-sm py-3">
         <div class="container">
-            <div class="row align-items-center gap-3 gap-md-0">
 
-                <div class="col-12 col-md-2 text-center text-md-start">
-                    <a href="index.html" class="text-decoration-none d-inline-flex align-items-center gap-2">
-                        <div class="logo-circle"
-                            style="width: 45px; height: 45px; background: #0f172a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem;">
-                            BF</div>
-                        <div class="text-start">
-                            <h1 class="m-0 text-dark fw-bold fs-5" style="line-height: 1.1;">Profa.<br>Brenda</h1>
-                        </div>
-                    </a>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div style="width: 80px;" class="d-none d-md-block"></div>
+                <div class="text-center flex-grow-1">
+                    <h4 class="m-0 fw-bold text-dark">
+                        <span class="bg-dark text-white rounded-circle d-inline-block text-center me-2"
+                            style="width: 40px; height: 40px; line-height: 40px; font-size: 1.2rem;">BF</span>
+                        Profa. Brenda
+                    </h4>
                 </div>
 
-                <div class="col-12 col-md-5">
-                    <div class="input-group">
+                <div id="auth-placeholder" class="text-end" style="width: 80px;">
+                </div>
+            </div>
+
+            <div class="row align-items-center gap-3 gap-md-0">
+
+                <div class="col-12 col-md-8">
+                    <div class="input-group shadow-sm">
                         <button class="btn btn-dark dropdown-toggle px-3 fw-bold" type="button"
                             data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #0f172a;">
                             <i class="fas fa-bars me-1"></i> CATEGORIAS
@@ -69,26 +72,31 @@
                             <li><a class="dropdown-item" href="#"
                                     onclick="selectCategory('Construir', event)">Construir</a></li>
                         </ul>
+
                         <input type="text" id="search-input" class="form-control border-dark"
                             placeholder="O que você procura hoje?">
+
                         <button id="search-btn" class="btn btn-primary" type="button"
-                            style="background-color: #2563eb;"><i class="fas fa-search"></i></button>
+                            style="background-color: #2563eb;">
+                            <i class="fas fa-search"></i>
+                        </button>
                     </div>
                 </div>
 
                 <div
-                    class="col-12 col-md-5 d-flex justify-content-center justify-content-md-end align-items-center gap-4">
+                    class="col-12 col-md-4 d-flex justify-content-center justify-content-md-end align-items-center gap-4">
+
                     <div id="user-nav" class="d-none d-md-flex align-items-center gap-4"></div>
+
                     <div class="cart-icon-container position-relative cursor-pointer text-dark d-none d-md-block"
                         onclick="toggleCart()" style="font-size: 1.4rem; cursor: pointer;">
-
                         <i class="fas fa-shopping-cart"></i>
                         <span id="cart-count"
                             class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light p-1"
                             style="font-size: 0.6rem;">0</span>
-
                     </div>
                 </div>
+
             </div>
         </div>
     </header>
