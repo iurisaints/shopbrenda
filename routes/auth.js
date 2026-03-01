@@ -28,7 +28,7 @@ router.post('/register', async (req, res) => {
             <p>Olá ${name}! A sua conta foi criada com sucesso.</p>
             <p>Agora já pode favoritar materiais, acompanhar as suas encomendas e descarregar os seus ficheiros digitais diretamente na plataforma.</p>
         `;
-        await sendEmail(email, "Bem-vinda(o)! Confirmação de Registo", mailHtml);
+        sendEmail(email, "Bem-vinda(o)! Confirmação de Registo", mailHtml);
 
         res.json({ message: 'Conta criada com sucesso!' });
     } catch (err) {

@@ -105,7 +105,7 @@ router.post('/create-checkout-session', authenticateToken, async (req, res) => {
         // Nota: Assumindo que req.user tem o email. Se não tiver, terá de fazer um SELECT na base de dados pelo user.id
         const [userDb] = await db.query("SELECT email FROM users WHERE id = ?", [user.id]);
         if (userDb.length > 0) {
-            await sendEmail(userDb[0].email, `Aguardando Pagamento - Pedido #${orderId}`, mailHtml);
+            sendEmail(userDb[0].email, `Aguardando Pagamento - Pedido #${orderId}`, mailHtml);
         }
 
         res.json({ url: paymentUrl });
@@ -185,7 +185,7 @@ async function enviarEmailComProduto(userEmail, userName, orderId, items) {
     `;
 
     // Dispara através do nosso carteiro central
-    await sendEmail(userEmail, `O seu material chegou! Pedido #${orderId} 🚀`, mensagemHtml);
+    sendEmail(userEmail, `O seu material chegou! Pedido #${orderId} 🚀`, mensagemHtml);
 }
 
 module.exports = router;
