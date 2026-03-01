@@ -4,7 +4,7 @@ const ADMIN_API_URL = window.location.hostname === 'localhost' || window.locatio
     : window.location.origin + '/api';
 
 // guardo os produtos aqui pra poder usar depois (tipo na hora de editar)
-let currentProducts = []; 
+let currentProducts = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     initAdminPage();
@@ -13,15 +13,15 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initAdminPage() {
     const token = localStorage.getItem('token');
     if (!token) {
-        window.location.href = 'login.html'; 
+        window.location.href = 'login.html';
         return;
     }
-    
+
     if (typeof window.authFetch !== 'function') {
         alert("erro de sistema: authFetch não encontrado. recarregue a página.");
         return;
     }
-    
+
     loadProductsList();
 }
 
@@ -34,7 +34,7 @@ async function loadProductsList() {
 
     try {
         const res = await fetch(`${ADMIN_API_URL}/products?t=${Date.now()}`);
-        currentProducts = await res.json(); 
+        currentProducts = await res.json();
 
         list.innerHTML = '';
 
@@ -46,26 +46,36 @@ async function loadProductsList() {
         currentProducts.forEach(p => {
             const img = p.image_url || 'https://via.placeholder.com/50';
             const price = parseFloat(p.price).toFixed(2).replace('.', ',');
-            const titleDisplay = p.is_offer ? `🔥 ${p.title}` : p.title; 
+            const titleDisplay = p.is_offer ? `🔥 ${p.title}` : p.title;
 
             const item = document.createElement('div');
             item.className = 'product-list-item';
             item.innerHTML = `
-                <div class="product-info">
-                    <img src="${img}" class="product-img">
-                    <div>
-                        <strong style="color:#0f172a; display:block;">${titleDisplay}</strong>
-                        <span style="font-size:0.85rem; color:#64748b;">${p.category || 'Sem Categoria'} • R$ ${price}</span>
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 w-100 p-2">
+    
+                <div class="d-flex align-items-center gap-3 flex-grow-1" style="min-width: 0;">
+                    <img src="${p.image_url || 'https://via.placeholder.com/80'}" class="rounded border shadow-sm" style="width: 60px; height: 60px; object-fit: cover;">
+                    
+                    <div style="min-width: 0;">
+                        <h6 class="fw-bold text-dark mb-1 text-truncate" title="${p.title}">${p.title}</h6>
+                        <small class="text-muted d-block text-truncate" title="${p.category}">
+                            ${p.category || 'Geral'} • R$ ${parseFloat(p.price).toFixed(2).replace('.', ',')}
+                        </small>
                     </div>
                 </div>
-                <div class="actions">
-                    <button onclick="startEditMode(${p.id})" class="btn-icon edit-btn" title="Editar">
-                        <i class="fas fa-pencil-alt"></i>
-                    </button>
-                    <button onclick="deleteProductItem(${p.id})" class="btn-icon delete-btn" title="Excluir">
-                        <i class="fas fa-trash"></i>
-                    </button>
+
+                <hr class="d-md-none m-0 text-muted">
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <button onclick="startEditMode(${p.id})" class="btn btn-outline-primary btn-sm px-3 rounded-pill shadow-sm" title="Editar">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button onclick="deleteProductItem(${p.id})" class="btn btn-outline-danger btn-sm px-3 rounded-pill shadow-sm" title="Excluir">
+                    <i class="fas fa-trash"></i>
+                </button>
                 </div>
+                
+            </div>
             `;
             list.appendChild(item);
         });
@@ -84,16 +94,16 @@ async function handleProductSubmit(event) {
     const titleField = document.getElementById('p-title');
     const priceField = document.getElementById('p-price');
     const descField = document.getElementById('p-desc');
-    const imagesField = document.getElementById('p-images'); 
-    const fileField = document.getElementById('p-file');     
-    const offerField = document.getElementById('p-offer');   
+    const imagesField = document.getElementById('p-images');
+    const fileField = document.getElementById('p-file');
+    const offerField = document.getElementById('p-offer');
 
     const checkedCategories = Array.from(document.querySelectorAll('input[name="cat"]:checked'))
-                                   .map(cb => cb.value)
-                                   .join(', ');
+        .map(cb => cb.value)
+        .join(', ');
 
     if (!titleField || !priceField) {
-        alert("erro: campos principais não encontrados no html.");
+        showAlertModal("Ops, deu erro", "Tivemos um problema ao salvar no servidor.", "error");
         return;
     }
 
@@ -105,17 +115,17 @@ async function handleProductSubmit(event) {
     const formData = new FormData();
     formData.append('title', titleField.value);
     formData.append('price', priceField.value);
-    formData.append('category', checkedCategories); 
+    formData.append('category', checkedCategories);
     formData.append('description', descField.value);
-    
+
     if (offerField) {
         formData.append('is_offer', offerField.checked ? 1 : 0);
     }
 
     if (imagesField && imagesField.files.length > 0) {
-        formData.append('image', imagesField.files[0]); 
+        formData.append('image', imagesField.files[0]);
     }
-    
+
     if (fileField && fileField.files.length > 0) {
         formData.append('file', fileField.files[0]);
     }
@@ -123,7 +133,7 @@ async function handleProductSubmit(event) {
     try {
         let res;
         const id = idField.value;
-        const token = localStorage.getItem('token'); 
+        const token = localStorage.getItem('token');
 
         const url = id ? `${ADMIN_API_URL}/products/${id}` : `${ADMIN_API_URL}/products`;
         const method = id ? 'PUT' : 'POST';
@@ -139,17 +149,17 @@ async function handleProductSubmit(event) {
         });
 
         if (res.ok) {
-            alert(id ? "produto atualizado!" : "produto criado com sucesso!");
-            cancelEditMode(); 
-            loadProductsList(); 
+            showAlertModal("Sucesso!", id ? "Produto atualizado!" : "Produto criado perfeitamente!", "success");
+            cancelEditMode();
+            loadProductsList();
         } else {
             const errData = await res.json();
-            alert("erro: " + (errData.error || "problema ao salvar no servidor"));
+            showAlertModal("Ops, deu erro", "Tivemos um problema ao salvar no servidor.", "error");
         }
 
     } catch (error) {
         console.error(error);
-        alert("falha de conexão.");
+        showAlertModal("Ops, deu erro", "Tivemos um problema ao salvar no servidor.", "error");
     } finally {
         btn.innerText = originalText;
         btn.disabled = false;
@@ -165,22 +175,22 @@ function startEditMode(id) {
     document.getElementById('p-title').value = product.title;
     document.getElementById('p-price').value = product.price;
     document.getElementById('p-desc').value = product.description || '';
-    
+
     const offerField = document.getElementById('p-offer');
     if (offerField) offerField.checked = !!product.is_offer;
 
     document.querySelectorAll('input[name="cat"]').forEach(cb => {
-        cb.checked = false; 
+        cb.checked = false;
         if (product.category && product.category.includes(cb.value)) {
-            cb.checked = true; 
+            cb.checked = true;
         }
     });
-    
+
     document.getElementById('form-title').innerText = "editando: " + product.title;
     document.getElementById('btn-save').innerHTML = '<i class="fas fa-save"></i> ATUALIZAR';
-    document.getElementById('btn-save').classList.replace('btn-primary', 'btn-warning'); 
+    document.getElementById('btn-save').classList.replace('btn-primary', 'btn-warning');
     document.getElementById('btn-cancel').style.display = "block";
-    
+
     document.querySelector('.admin-wrapper').scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -188,22 +198,41 @@ function startEditMode(id) {
 function cancelEditMode() {
     document.getElementById('product-form').reset();
     document.getElementById('p-id').value = "";
-    
+
     document.querySelectorAll('input[name="cat"]').forEach(cb => cb.checked = false);
-    
+
     document.getElementById('form-title').innerText = "+ Novo Produto";
     document.getElementById('btn-save').innerHTML = '<i class="fas fa-save"></i> SALVAR PRODUTO';
     document.getElementById('btn-save').classList.replace('btn-warning', 'btn-primary');
     document.getElementById('btn-cancel').style.display = "none";
 }
 
-// --- matar um produto ---
+// --- deletar um produto ---
 async function deleteProductItem(id) {
-    if (!confirm("certeza absoluta q quer apagar?")) return;
-    try {
-        const res = await window.authFetch(`${ADMIN_API_URL}/products/${id}`, { method: 'DELETE' });
-        if (res.ok) loadProductsList();
-    } catch (e) { alert("deu ruim ao excluir."); }
+    showConfirmModal(
+        "Excluir Material",
+        "Tem certeza que deseja apagar este produto definitivamente? Esta ação não pode ser desfeita.",
+        async () => {
+            try {
+                const res = await authFetch(`${ADMIN_API_URL}/products/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    showAlertModal("Excluído!", "O material foi apagado com sucesso.", "success");
+                    
+                    // CORREÇÃO: Chama a função certa para recarregar a lista do admin
+                    loadProductsList(); 
+                } else {
+                    showAlertModal("Erro na Exclusão", "O servidor recusou a requisição.", "error");
+                }
+            } catch (error) {
+                console.error("Erro ao deletar:", error);
+                showAlertModal("Falha na Rede", "Não foi possível conectar ao servidor.", "error");
+            }
+        },
+        "Excluir" // Texto do botão vermelho customizado!
+    );
 }
 
 window.handleProductSubmit = handleProductSubmit;

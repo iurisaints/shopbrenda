@@ -73,6 +73,51 @@ router.post('/', authenticateToken, uploadFields, async (req, res) => {
     }
 });
 
+// --- EDITAR PRODUTO (PUT - ADMIN) ---
+router.put('/:id', authenticateToken, uploadFields, async (req, res) => {
+    // 1. Verifica se é admin
+    if (req.user.role !== 'admin') return res.sendStatus(403);
+
+    const productId = req.params.id;
+    const { title, price, category, description, is_offer } = req.body;
+    const offerValue = (is_offer === 'true' || is_offer === '1') ? 1 : 0;
+
+    try {
+        // 2. Busca o produto antigo no banco primeiro (para não apagar os arquivos velhos se o usuário não enviou novos)
+        const [oldProduct] = await db.query("SELECT image_url, file_url FROM products WHERE id = ?", [productId]);
+        
+        if (oldProduct.length === 0) {
+            return res.status(404).json({ error: "Produto não encontrado no banco." });
+        }
+
+        // Mantém as URLs antigas como padrão
+        let coverUrl = oldProduct[0].image_url;
+        let fileUrl = oldProduct[0].file_url;
+
+        // 3. Se veio imagem nova no formulário, atualiza a variável
+        if (req.files && req.files['image']) {
+            coverUrl = `${req.protocol}://${req.get('host')}/uploads/${req.files['image'][0].filename}`;
+        }
+        
+        // 4. Se veio arquivo PDF novo no formulário, atualiza a variável
+        if (req.files && req.files['file']) {
+            fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.files['file'][0].filename}`;
+        }
+
+        // 5. Manda a atualização pro Banco de Dados
+        await db.query(
+            "UPDATE products SET title = ?, price = ?, category = ?, description = ?, image_url = ?, file_url = ?, is_offer = ? WHERE id = ?",
+            [title, price, category, description, coverUrl, fileUrl, offerValue, productId]
+        );
+
+        res.json({ message: "Produto atualizado com sucesso!" });
+
+    } catch (err) {
+        console.error("Erro ao atualizar:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // --- DELETAR PRODUTO (DELETE - ADMIN) ---
 router.delete('/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.sendStatus(403);

@@ -12,12 +12,12 @@ async function handleRegister(e) {
     const confirmPassword = document.getElementById('reg-confirm-password').value;
 
     if (password.length < 6) {
-        alert("🔒 Por segurança, sua senha deve ter no mínimo 6 caracteres.");
+        showAlertModal("Senha Fraca", "A senha deve ter no mínimo 6 caracteres.", "warning");
         return; // Interrompe tudo aqui, nem tenta mandar pro servidor
     }
 
     if (password !== confirmPassword) {
-        alert("As senhas não coincidem!");
+        showAlertModal("Erro no Cadastro", "As senhas não coincidem!", "error");
         return;
     }
 
@@ -38,7 +38,7 @@ async function handleRegister(e) {
 
         // se der certo, avisa e manda pro login
         if (res.ok) {
-            alert("Conta criada com sucesso! Faça login para continuar.");
+            showAlertModal("Bem-vinda!", "Sua conta foi criada com sucesso.", "success");
             window.location.href = 'login.html';
         } else {
             // se der erro, mostra a mensagem do servidor

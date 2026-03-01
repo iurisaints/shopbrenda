@@ -36,7 +36,7 @@ window.authFetch = async function (url, options = {}) {
 
     // trigger de sessao invalida. derrubo o token e redireciono.
     if (response.status === 401 || response.status === 403) {
-        if (response.status === 403 && url.includes('admin')) alert("sessão expirada.");
+        if (response.status === 403 && url.includes('admin')) showAlertModal("Sessão Expirada", "Sua chave de acesso venceu. Faça login novamente.", "warning");
         logout();
     }
     return response;
@@ -256,23 +256,38 @@ function addToCartWrapper(id) {
 // 4. carrossel e product modal engine
 // ==================================================
 
-// busco o hit na ref global de array via id e monto o modal tree
+// busco o hit na ref global de array via id e monto o modal tree// busco o hit na ref global de array via id e monto o modal tree
 function openProductDetail(id) {
     const product = window.allProducts.find(p => p.id === id);
     if (!product) return;
 
-    // condicional logico: inicializo index ou faco fallback pra str fallback
-    currentModalImages = (product.gallery && product.gallery.length > 0) ? product.gallery : [product.image_url || 'https://via.placeholder.com/400'];
-    currentImageIndex = 0;
+    // defino a imagem principal com fallback garantido
+    const mainImage = product.image_url || 'https://via.placeholder.com/400';
+    currentModalImages = [mainImage];
+
+    // O SEGREDO AQUI: filtro rigoroso contra "lixo" no banco de dados (null, undefined, vazios)
+    if (product.gallery && Array.isArray(product.gallery)) {
+        product.gallery.forEach(img => {
+            if (img && typeof img === 'string') {
+                const cleanUrl = img.trim();
+                // só adiciona se for um link válido e diferente da foto principal
+                if (cleanUrl.length > 5 && cleanUrl !== 'null' && cleanUrl !== 'undefined' && cleanUrl !== mainImage) {
+                    currentModalImages.push(cleanUrl);
+                }
+            }
+        });
+    }
+
+    currentImageIndex = 0; 
 
     document.getElementById('pm-title').innerText = product.title;
     document.getElementById('pm-desc').innerText = product.description || "";
-
-    // aplico a mesma engine de parse de tags (split + map + flex wrap) do layout de cards principal para coesao visual em ui components diferentes
+    
+    // aplico a mesma engine de parse de tags (split + map + flex wrap) do layout de cards principal
     const catContainer = document.getElementById('pm-category');
-    catContainer.innerHTML = '';
-    catContainer.className = 'd-flex flex-wrap justify-content-center gap-1 mb-3 w-100';
-
+    catContainer.innerHTML = ''; 
+    catContainer.className = 'd-flex flex-wrap justify-content-center gap-1 mb-3 w-100'; 
+    
     if (product.category) {
         const categorias = product.category.split(',');
         categorias.forEach(cat => {
@@ -281,13 +296,13 @@ function openProductDetail(id) {
             }
         });
     }
-
+    
     // pipeline update ui -> trigger price parse -> sync event listeners 
     updateCarouselDisplay();
     renderPriceInModal(product);
-    setupCarouselControls();
+    setupCarouselControls(); // Se o array tiver só 1 foto, as setas somem sozinhas!
 
-    // cloneNode hack para desvincular o listener (onclick) residual do ultimo component renderizado na session, prevenindo multiexecution
+    // cloneNode hack para desvincular o listener (onclick) residual
     const btn = document.getElementById('pm-add-btn');
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
@@ -295,7 +310,7 @@ function openProductDetail(id) {
         addToCartWrapper(product.id);
         document.getElementById('product-detail-modal').style.display = 'none';
     };
-
+    
     // forco re-render layout trigger 
     document.getElementById('product-detail-modal').style.display = 'flex';
 }
@@ -563,12 +578,14 @@ function renderTopAuthPlaceholder() {
     const adminPlaceholder = document.getElementById('admin-mobile-placeholder');
     
     if (!token) {
-        // view deslogada: injeta apenas entrar no root header
+        // injeta sair no root header com flex garantido e sem quebra
         if (headerPlaceholder) {
             headerPlaceholder.innerHTML = `
-                <a href="login.html" class="btn btn-outline-primary btn-sm fw-bold px-3 rounded-pill d-md-none">
-                    <i class="fas fa-sign-in-alt"></i> Entrar
-                </a>
+                <div class="d-flex justify-content-end" style="min-width: 80px;">
+                    <button onclick="handleLogout()" class="btn btn-outline-danger btn-sm fw-bold px-3 rounded-pill d-md-none">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </button>
+                </div>
             `;
         }
         if (adminPlaceholder) adminPlaceholder.innerHTML = '';
@@ -600,12 +617,95 @@ function renderTopAuthPlaceholder() {
     }
 }
 
-// call pra dump em memoria e trigger manual global reload.
+// ==================================================
+// 7. MOTOR DE MODAL GLOBAL (ALERTS CUSTOMIZADOS)
+// ==================================================
+
+// injeta o html dos modais com css inline para bypass de stylesheets ausentes
+function injectGlobalModal() {
+    if (document.getElementById('global-alert-modal')) return;
+    
+    // propriedades de overlay e box model travadas no inline style
+    const overlayStyle = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.6); display: none; z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(2px);";
+    const contentStyle = "background-color: #fff; max-width: 350px; width: 90%; border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);";
+
+    const alertHtml = `
+    <div id="global-alert-modal" style="${overlayStyle}">
+        <div style="${contentStyle}">
+            <div id="global-modal-icon" class="mb-3"></div>
+            <h4 id="global-modal-title" class="fw-bold text-dark mb-2"></h4>
+            <p id="global-modal-message" class="text-muted mb-4" style="font-size: 0.95rem;"></p>
+            <button onclick="document.getElementById('global-alert-modal').style.display='none'" class="btn w-100 fw-bold rounded-pill" id="global-modal-btn">OK</button>
+        </div>
+    </div>`;
+
+    const confirmHtml = `
+    <div id="global-confirm-modal" style="${overlayStyle}">
+        <div style="${contentStyle}">
+            <div class="mb-3"><i class="fas fa-question-circle text-primary" style="font-size: 3.5rem;"></i></div>
+            <h4 id="global-confirm-title" class="fw-bold text-dark mb-2"></h4>
+            <p id="global-confirm-message" class="text-muted mb-4" style="font-size: 0.95rem;"></p>
+            <div class="d-flex gap-2">
+                <button onclick="document.getElementById('global-confirm-modal').style.display='none'" class="btn btn-light w-50 fw-bold rounded-pill text-dark border">Cancelar</button>
+                <button id="global-confirm-btn" class="btn btn-danger w-50 fw-bold rounded-pill">Sair</button>
+            </div>
+        </div>
+    </div>`;
+    
+    document.body.insertAdjacentHTML('beforeend', alertHtml + confirmHtml);
+}
+
+// controller para invocar alertas simples (sucesso/erro)
+window.showAlertModal = function(title, message, type = 'success') {
+    const modal = document.getElementById('global-alert-modal');
+    const icon = document.getElementById('global-modal-icon');
+    const titleEl = document.getElementById('global-modal-title');
+    const msgEl = document.getElementById('global-modal-message');
+    const btn = document.getElementById('global-modal-btn');
+
+    titleEl.innerText = title;
+    msgEl.innerText = message;
+
+    if (type === 'success') {
+        icon.innerHTML = '<i class="fas fa-check-circle text-success" style="font-size: 3.5rem;"></i>';
+        btn.className = 'btn btn-success w-100 fw-bold rounded-pill';
+    } else if (type === 'error') {
+        icon.innerHTML = '<i class="fas fa-times-circle text-danger" style="font-size: 3.5rem;"></i>';
+        btn.className = 'btn btn-danger w-100 fw-bold rounded-pill';
+    } else {
+        icon.innerHTML = '<i class="fas fa-exclamation-triangle text-warning" style="font-size: 3.5rem;"></i>';
+        btn.className = 'btn btn-warning text-dark w-100 fw-bold rounded-pill';
+    }
+
+    modal.style.display = 'flex';
+};
+
+// controller para invocar confirmações com callback (ex: logout, exclusões)
+window.showConfirmModal = function(title, message, onConfirmCallback, confirmText = "Confirmar") {
+    document.getElementById('global-confirm-title').innerText = title;
+    document.getElementById('global-confirm-message').innerText = message;
+    
+    const confirmBtn = document.getElementById('global-confirm-btn');
+    confirmBtn.innerText = confirmText; // <- Atualiza o texto do botão dinamicamente!
+    
+    confirmBtn.onclick = () => {
+        document.getElementById('global-confirm-modal').style.display = 'none';
+        if (typeof onConfirmCallback === 'function') onConfirmCallback();
+    };
+    
+    document.getElementById('global-confirm-modal').style.display = 'flex';
+};
+
+// aciona a injeção assim que a árvore do dom estiver pronta
+document.addEventListener('DOMContentLoaded', injectGlobalModal);
+
+// call pra dump em memoria com modal customizado de confirmação
 function handleLogout() {
-    if (confirm("Tem certeza que deseja sair da sua conta?")) {
+    showConfirmModal("Sair da Conta", "Tem certeza que deseja sair da sua conta e voltar para a vitrine?", () => {
+        // esse código só roda se o usuário clicar no botão vermelho "Sair"
         localStorage.removeItem('token');
         window.location.href = 'index.html';
-    }
+    });
 }
 window.handleLogout = handleLogout;
 

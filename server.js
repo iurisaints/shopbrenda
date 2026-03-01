@@ -34,7 +34,7 @@ app.use('/api/orders', require('./routes/orders'));
 
 // TESTE DE VIDA DO SERVIDOR
 app.get('/teste', (req, res) => {
-    res.send("<h1>BINGO! O servidor Node.js está vivo e respondendo!</h1>");
+    res.send("<h1>O servidor Node.js está vivo e respondendo!</h1>");
 });
 
 // ROTA DE DOWNLOAD (COM LOGS PARA DEBUG)

@@ -37,7 +37,7 @@ async function handleLogin(e) {
                 localStorage.removeItem('cart_guest');
             }
 
-            alert("Login realizado com sucesso!");
+            showAlertModal("Bem-vindo!", "Seu login foi feito com sucesso.", "success");
             
             // redireciona para o painel se for admin ou para a loja se for cliente
             if (data.role === 'admin') {
@@ -47,7 +47,7 @@ async function handleLogin(e) {
             }
         } else {
             // avisa caso a senha ou email estejam errados
-            alert(data.error || "Erro ao fazer login.");
+            showAlertModal("Erro no Login", data.error || "Credenciais inválidas.", "error");
         }
     } catch (error) {
         // trata erros de rede ou servidor desligado
