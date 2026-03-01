@@ -1,39 +1,48 @@
 // ==================================================
-// 1. configurações globais
+// 1. environment e state global em memoria
 // ==================================================
+
+// resolvo a url da api dinamicamente via hostname para bypassar o localhost vs origin em prod
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000/api'
     : '/api';
 
-let currentCategory = ''; 
-let currentSearch = '';   
+// ponteiros globais de memoria (estado de ui)
+let currentCategory = '';
+let currentSearch = '';
 
-// torno a lista de produtos global para o cart.js conseguir ler
-window.allProducts = []; 
+// exponho as matrizes no escopo global (window) para consumo do cart.js sem overhead de requests
+window.allProducts = [];
 let allOrdersCache = [];
 
-let currentModalImages = []; 
+// controle de state do carrossel nativo
+let currentModalImages = [];
 let currentImageIndex = 0;
 
 // ==================================================
-// 2. sistema central de busca e filtros
+// 2. core de auth e interceptors
 // ==================================================
 
-// fetch personalizado com token
+// wrapper assincrono que muta a requisicao padrao do fetch. injeto o token jwt no header e aplico interceptor de erro 401/403 para force-logout.
 window.authFetch = async function (url, options = {}) {
     const token = localStorage.getItem('token');
     const headers = { ...options.headers };
+
+    // defino content-type padrao, ignorando caso o payload seja multpart (arquivos)
     if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     const response = await fetch(url, { ...options, headers });
+
+    // trigger de sessao invalida. derrubo o token e redireciono.
     if (response.status === 401 || response.status === 403) {
-        if (response.status === 403 && url.includes('admin')) alert("Sessão expirada.");
+        if (response.status === 403 && url.includes('admin')) alert("sessão expirada.");
         logout();
     }
     return response;
 };
 
+// validacao hibrida de ui. leio o storage e altero os nós do dom (menu de navegacao) condicionalmente.
 function checkAuth() {
     const token = localStorage.getItem('token');
     const userNav = document.getElementById('user-nav');
@@ -44,7 +53,7 @@ function checkAuth() {
         const role = localStorage.getItem('userRole');
         const adminLink = role === 'admin' ? `<a href="admin.html" class="text-warning fw-bold text-decoration-none d-flex align-items-center gap-1"></i> Admin</a>` : '';
 
-        userNav.className = "d-none d-md-flex align-items-center gap-4"; 
+        userNav.className = "d-none d-md-flex align-items-center gap-4";
         userNav.innerHTML = `
             ${adminLink}
             <a href="meus-pedidos.html" class="text-dark text-decoration-none fw-bold">Pedidos</a>
@@ -61,8 +70,10 @@ function checkAuth() {
     }
 }
 
+// flush de memoria e redirect
 function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
+// router customizado pro motor de busca. avalio o path atual: se em rota / muto o dom direto, senao do pushstate com parametros.
 function performGlobalSearch() {
     const searchInput = document.getElementById('search-input');
     const term = searchInput ? searchInput.value.trim() : '';
@@ -78,24 +89,26 @@ function performGlobalSearch() {
     }
 }
 
+// handler de mutacao da badge do filtro e update condicional de query string
 function selectCategory(cat, event) {
     if (event) event.preventDefault();
     if (cat === 'Todas') {
         currentCategory = '';
         currentSearch = '';
         const input = document.getElementById('search-input');
-        if(input) input.value = '';
+        if (input) input.value = '';
     } else {
         currentCategory = cat;
     }
     const badge = document.getElementById('active-filter-badge');
-    if(badge) {
-        if(currentCategory) { badge.innerText = `Filtro: ${currentCategory}`; badge.classList.remove('d-none'); }
+    if (badge) {
+        if (currentCategory) { badge.innerText = `Filtro: ${currentCategory}`; badge.classList.remove('d-none'); }
         else badge.classList.add('d-none');
     }
     performGlobalSearch();
 }
 
+// parsing de urlparams via web api. hidrato os inputs no lifecycle hook.
 function checkUrlParams() {
     const params = new URLSearchParams(window.location.search);
     const searchParam = params.get('search');
@@ -109,19 +122,21 @@ function checkUrlParams() {
     if (catParam) {
         currentCategory = catParam;
         const badge = document.getElementById('active-filter-badge');
-        if(badge) { badge.innerText = `Filtro: ${catParam}`; badge.classList.remove('d-none'); }
+        if (badge) { badge.innerText = `Filtro: ${catParam}`; badge.classList.remove('d-none'); }
     }
     if ((searchParam || catParam) && document.getElementById('products-container')) loadProducts();
 }
 
 // ==================================================
-// 3. produtos (carrega na variavel global)
+// 3. render engine principal (catalogo)
 // ==================================================
 
+// fetch no endpoint de produtos interpolando os ponteiros de memoria para fitragem via qs. 
 async function loadProducts() {
     const container = document.getElementById('products-container');
-    if (!container) return; 
+    if (!container) return;
 
+    // cache-busting timestamp force
     let url = `${API_URL}/products?t=${Date.now()}`;
     if (currentCategory && currentCategory !== 'Todas') url += `&category=${encodeURIComponent(currentCategory)}`;
     if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
@@ -129,19 +144,23 @@ async function loadProducts() {
     try {
         container.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Buscando materiais...</p></div>';
         const res = await fetch(url);
-        
-        // aqui salvo na variavel global window.allProducts
+
+        // atualizo o cache global
         window.allProducts = await res.json();
-        
+
+        // delego manipulacao do innerhtml pro render
         renderProducts(window.allProducts, container);
     } catch (error) {
-        console.error("Erro:", error);
+        console.error("erro ao dar o fetch no catalogo:", error);
         container.innerHTML = '<div class="col-12 text-center py-5 text-danger">Erro ao carregar produtos.</div>';
     }
 }
 
+// factory de nodes html baseada na matriz iterada.
 function renderProducts(products, containerElement) {
     containerElement.innerHTML = '';
+
+    // empty state view
     if (products.length === 0) {
         containerElement.innerHTML = `<div class="col-12 text-center py-5"><i class="fas fa-search fa-3x text-muted mb-3"></i><p class="text-muted fs-5">Nenhum material encontrado.</p><button onclick="window.location.href='index.html'" class="btn btn-outline-primary mt-2">Limpar Filtros</button></div>`;
         return;
@@ -150,18 +169,25 @@ function renderProducts(products, containerElement) {
     products.forEach(p => {
         const priceNum = parseFloat(p.price);
         const currentPrice = priceNum.toFixed(2).replace('.', ',');
-        
+
+        // ternary condicional para tag de oferta e mutacao na str de preco original
         let badgeHtml = p.is_offer ? `<div class="position-absolute top-0 end-0 m-2 badge bg-danger shadow-sm">OFERTA 🔥</div>` : '';
-        let priceHtml = p.is_offer 
+        let priceHtml = p.is_offer
             ? `<small class="text-decoration-line-through text-muted me-2">R$ ${(priceNum * 1.2).toFixed(2)}</small><span class="fw-bold text-danger fs-5">R$ ${currentPrice}</span>`
             : `<span class="fw-bold text-dark fs-5">R$ ${currentPrice}</span>`;
 
-        const heartIcon = isFavorite(p.id) ? 'fas fa-heart' : 'far fa-heart'; 
+        // sync do dom baseado em storage (likes)
+        const heartIcon = isFavorite(p.id) ? 'fas fa-heart' : 'far fa-heart';
         const heartColor = isFavorite(p.id) ? 'text-danger' : 'text-secondary';
         const imgUrl = p.image_url || 'https://via.placeholder.com/300x300?text=Sem+Imagem';
 
+        // faco o split da string categorica separando por virgula e mapeio pra nodes (span) injetando wrap fluid e safe layout via css
+        const categoriasHtml = p.category
+            ? p.category.split(',').map(cat => `<span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.7rem; white-space: normal;">${cat.trim()}</span>`).join('')
+            : `<span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.7rem;">Geral</span>`;
+
         const col = document.createElement('div');
-        col.className = 'col-6 col-md-4 col-lg-3'; 
+        col.className = 'col-6 col-md-4 col-lg-3';
         col.innerHTML = `
             <div class="card h-100 border-0 shadow-sm product-card position-relative">
                 ${badgeHtml}
@@ -173,12 +199,16 @@ function renderProducts(products, containerElement) {
                     </button>
                 </div>
                 <div class="card-body d-flex flex-column p-3">
-                    <span class="badge bg-light text-secondary border align-self-start mb-2">${p.category ? p.category.split(',')[0] : 'Geral'}</span>
                     <h5 class="card-title text-dark fw-bold fs-6 mb-2" style="cursor:pointer; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" onclick="openProductDetail(${p.id})">
                         ${p.title}
                     </h5>
                     <div class="mt-auto pt-2">
-                        <div class="mb-3">${priceHtml}</div>
+                        <div class="mb-2">${priceHtml}</div>
+                        
+                        <div class="d-flex flex-wrap gap-1 mb-3">
+                            ${categoriasHtml}
+                        </div>
+                        
                         <button class="btn btn-primary w-100 fw-bold btn-sm text-uppercase" onclick="addToCartWrapper(${p.id})">Adicionar</button>
                     </div>
                 </div>
@@ -187,33 +217,49 @@ function renderProducts(products, containerElement) {
     });
 }
 
-// wrapper que chama o carrinho
+// controller intermediario pro cart. varre o in-memory storage e injeta na action do component isolado
 function addToCartWrapper(id) {
-    // busca na variavel global
     let product = window.allProducts.find(p => p.id === id);
     if (!product) return;
     if (typeof addToCart === 'function') addToCart(product);
 }
 
 // ==================================================
-// 4. carrossel modal
+// 4. carrossel e product modal engine
 // ==================================================
 
+// busco o hit na ref global de array via id e monto o modal tree
 function openProductDetail(id) {
     const product = window.allProducts.find(p => p.id === id);
     if (!product) return;
 
+    // condicional logico: inicializo index ou faco fallback pra str fallback
     currentModalImages = (product.gallery && product.gallery.length > 0) ? product.gallery : [product.image_url || 'https://via.placeholder.com/400'];
-    currentImageIndex = 0; 
+    currentImageIndex = 0;
 
     document.getElementById('pm-title').innerText = product.title;
-    document.getElementById('pm-category').innerText = (product.category || '').replace(/,/g, ' • ');
     document.getElementById('pm-desc').innerText = product.description || "";
-    
+
+    // aplico a mesma engine de parse de tags (split + map + flex wrap) do layout de cards principal para coesao visual em ui components diferentes
+    const catContainer = document.getElementById('pm-category');
+    catContainer.innerHTML = '';
+    catContainer.className = 'd-flex flex-wrap justify-content-center gap-1 mb-3 w-100';
+
+    if (product.category) {
+        const categorias = product.category.split(',');
+        categorias.forEach(cat => {
+            if (cat.trim()) {
+                catContainer.innerHTML += `<span class="badge bg-light text-primary border px-2 py-1" style="white-space: normal; font-size: 0.8rem;">${cat.trim()}</span>`;
+            }
+        });
+    }
+
+    // pipeline update ui -> trigger price parse -> sync event listeners 
     updateCarouselDisplay();
     renderPriceInModal(product);
     setupCarouselControls();
 
+    // cloneNode hack para desvincular o listener (onclick) residual do ultimo component renderizado na session, prevenindo multiexecution
     const btn = document.getElementById('pm-add-btn');
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
@@ -221,40 +267,53 @@ function openProductDetail(id) {
         addToCartWrapper(product.id);
         document.getElementById('product-detail-modal').style.display = 'none';
     };
+
+    // forco re-render layout trigger 
     document.getElementById('product-detail-modal').style.display = 'flex';
 }
 
+// update de node target nativo de midia
 function updateCarouselDisplay() {
     const img = document.getElementById('pm-img');
-    if(img && currentModalImages.length > 0) img.src = currentModalImages[currentImageIndex];
+    if (img && currentModalImages.length > 0) img.src = currentModalImages[currentImageIndex];
 }
+
+// incremento de node em array circular com update dispatch
 function nextSlide() {
     currentImageIndex = (currentImageIndex < currentModalImages.length - 1) ? currentImageIndex + 1 : 0;
     updateCarouselDisplay(); setupCarouselControls();
 }
+
+// decremento de node em array circular com update dispatch
 function prevSlide() {
     currentImageIndex = (currentImageIndex > 0) ? currentImageIndex - 1 : currentModalImages.length - 1;
     updateCarouselDisplay(); setupCarouselControls();
 }
+
+// conditional rendering de chevrons baseada no length da str da galeria
 function setupCarouselControls() {
     const prev = document.getElementById('carousel-prev');
     const next = document.getElementById('carousel-next');
-    if(!prev || !next) return;
+    if (!prev || !next) return;
     const display = currentModalImages.length > 1 ? 'flex' : 'none';
     prev.style.display = display;
     next.style.display = display;
 }
+
+// event delegation fallback do root ou pointer click
 function closeProductModal(e) {
     if (e.target.id === 'product-detail-modal' || e.target.closest('.close-modal-btn')) {
         document.getElementById('product-detail-modal').style.display = 'none';
     }
 }
+
+// manipulacao manual condicional do box model e html tree pra switch de label oferta 
 function renderPriceInModal(product) {
     const priceBox = document.getElementById('pm-price-container');
     const priceNum = parseFloat(product.price);
-    if(product.is_offer) {
+    if (product.is_offer) {
         document.getElementById('pm-badge').style.display = 'block';
-        priceBox.innerHTML = `<span class="text-decoration-line-through text-muted fs-5 me-2">R$ ${(priceNum*1.2).toFixed(2)}</span><span class="text-danger fw-bold fs-2">R$ ${priceNum.toFixed(2)}</span>`;
+        priceBox.innerHTML = `<span class="text-decoration-line-through text-muted fs-5 me-2">R$ ${(priceNum * 1.2).toFixed(2)}</span><span class="text-danger fw-bold fs-2">R$ ${priceNum.toFixed(2)}</span>`;
     } else {
         document.getElementById('pm-badge').style.display = 'none';
         priceBox.innerHTML = `<span class="text-dark fw-bold fs-2">R$ ${priceNum.toFixed(2)}</span>`;
@@ -262,29 +321,32 @@ function renderPriceInModal(product) {
 }
 
 // ==================================================
-// 5. favoritos, toast e inicialização
+// 5. utils e cross-sell module
 // ==================================================
 
+// wrapper de deserializacao padrao para getters do webstorage
 function getFavorites() { return JSON.parse(localStorage.getItem('favorites')) || []; }
 function isFavorite(id) { return getFavorites().includes(id); }
 
+// toggle de index em array local e mutation do pointer persistente
 function toggleFavorite(id, btnElement) {
     if (event) event.stopPropagation();
     let favs = getFavorites();
     const index = favs.indexOf(id);
     if (index === -1) {
         favs.push(id);
-        if(btnElement) btnElement.innerHTML = '<i class="fas fa-heart text-danger"></i>';
+        if (btnElement) btnElement.innerHTML = '<i class="fas fa-heart text-danger"></i>';
         showToast("Salvo nos favoritos!", "success");
     } else {
         favs.splice(index, 1);
-        if(btnElement) btnElement.innerHTML = '<i class="far fa-heart text-secondary"></i>';
+        if (btnElement) btnElement.innerHTML = '<i class="far fa-heart text-secondary"></i>';
         if (window.location.pathname.includes('favoritos.html')) loadFavoritesPage();
         showToast("Removido dos favoritos.");
     }
     localStorage.setItem('favorites', JSON.stringify(favs));
 }
 
+// sync do render tree no component principal com a flag salva persistente
 async function loadFavoritesPage() {
     const container = document.getElementById('favorites-container');
     if (!container) return;
@@ -303,7 +365,8 @@ async function loadFavoritesPage() {
     }
 }
 
-function showToast(msg, type='info') {
+// factory procedural para dynamic dom mount de alert popups e cleanup on timeout
+function showToast(msg, type = 'info') {
     let container = document.getElementById('toast-container');
     if (!container) {
         container = document.createElement('div');
@@ -318,59 +381,45 @@ function showToast(msg, type='info') {
     setTimeout(() => { toast.remove(); }, 3500);
 }
 
+// bind dos input triggers nativos
 function setupGlobalEvents() {
     const searchBtn = document.getElementById('search-btn');
     const searchInput = document.getElementById('search-input');
     if (searchBtn) searchBtn.onclick = performGlobalSearch;
-    if (searchInput) searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') performGlobalSearch(); });
+    if (searchInput) searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performGlobalSearch(); });
 }
 
-window.showSuggestionModal = function(currentProduct) {
-    console.log("🔍 Iniciando busca de sugestões para:", currentProduct.title);
-
-    // 1. Verifica se temos produtos para sugerir
+// feature isolada. script lexico rodando regex de comparativo com in-memory pra puxar hit de recomendacao de vendas (cross-sell array match).
+window.showSuggestionModal = function (currentProduct) {
     if (!allProductsCache || allProductsCache.length === 0) {
-        console.warn("⚠️ Cache de produtos vazio. Abrindo carrinho direto.");
         toggleCart();
         return;
     }
 
-    // 2. Prepara as categorias do produto atual (limpa espaços e deixa minúsculo)
-    // Ex: "BNCC, Inglês" vira ["bncc", "inglês"]
+    // array buffer das tags originais lowercased
     const rawCats = currentProduct.category ? currentProduct.category.split(',') : [];
     const currentCats = rawCats.map(c => c.trim().toLowerCase());
 
-    console.log("📂 Categorias do produto:", currentCats);
-
-    // 3. Pega o carrinho atual para não sugerir o que já comprou
     const currentCart = JSON.parse(localStorage.getItem('brenda_shop_cart_v1')) || [];
 
-    // 4. Filtragem Inteligente
+    // reduco via iteracao logica estrita: sem o id de context base e sem os hit ja existentes no json serializado
     const suggestions = allProductsCache.filter(p => {
-        // Não sugere o próprio produto
         if (p.id === currentProduct.id) return false;
+        if (currentCart.find(c => c.id === p.id)) return false;
 
-        // Não sugere o que já está no carrinho
-        if (currentCart.find(c => c.id === p.id)) return false; 
-        
-        // Verifica Categorias
         const pCatsRaw = p.category ? p.category.split(',') : [];
         const pCats = pCatsRaw.map(c => c.trim().toLowerCase());
 
-        // Se tiver pelo menos UMA categoria em comum, serve
         const hasMatch = pCats.some(cat => currentCats.includes(cat));
-        
         return hasMatch;
-    }).slice(0, 2); // Pega no máximo 2
+    }).slice(0, 2);
 
-    console.log(`✅ Sugestões encontradas: ${suggestions.length}`, suggestions);
-
-    // 5. Decisão: Mostra Modal ou Carrinho
+    // flush pro dom via template literals injetados a seco.
     if (suggestions.length > 0) {
         const modal = document.getElementById('suggestion-modal');
         const container = document.getElementById('suggestion-items');
-        
-        if(modal && container) {
+
+        if (modal && container) {
             container.innerHTML = suggestions.map(p => `
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="row g-0 align-items-center h-100">
@@ -390,29 +439,31 @@ window.showSuggestionModal = function(currentProduct) {
                     </div>
                 </div>
             `).join('');
-            
+
             modal.style.display = 'flex';
         } else {
-            console.error("❌ Elemento HTML do modal não encontrado.");
             toggleCart();
         }
     } else {
-        console.log("ℹ️ Nenhuma sugestão compatível. Abrindo carrinho.");
-        toggleCart(); 
+        toggleCart();
     }
 }
 
+// ==================================================
+// 6. core orders module e autenticacao estetica
+// ==================================================
+
+// tree rendering das faturas salvas em cache com bypass url dinamica do regex parse
 function renderOrders() {
     const container = document.getElementById('orders-list');
     if (!container) return;
 
-    // 1. Filtra Pedidos (Busca local)
+    // runtime logic pro pipeline nativo do order array search filter. regex simplificada.
     const filtered = allOrdersCache.filter(order => {
         const searchLower = currentSearch.toLowerCase();
         const matchId = order.id.toString().includes(searchLower);
-        // Verifica se algum item do pedido tem o texto da busca
         const matchItem = order.items && order.items.some(item => item.title.toLowerCase().includes(searchLower));
-        
+
         return !currentSearch || matchId || matchItem;
     });
 
@@ -425,24 +476,17 @@ function renderOrders() {
 
     filtered.forEach(order => {
         const date = new Date(order.created_at).toLocaleDateString('pt-BR');
-        
-        // Define cor e texto do status
+
         const isPaid = order.status === 'paid';
         const statusClass = isPaid ? 'bg-success' : 'bg-warning text-dark';
         const statusLabel = isPaid ? 'Pago' : 'Pendente';
-        
-        // === LÓGICA DO BOTÃO DE DOWNLOAD (A PARTE IMPORTANTE) ===
-        let actionBtn = '';
 
+        // bypass do full path do db pegando apenas pop na mascara do os file structure regex format.
+        let actionBtn = '';
         if (isPaid) {
-            // Pega o link do primeiro produto do pedido
             const fullUrl = order.items && order.items[0] ? order.items[0].file_url : null;
-            
             if (fullUrl) {
-                // Truque: Pega só o nome do arquivo (ex: 12345-livro.pdf) da URL completa
-                const filename = fullUrl.split(/[/\\]/).pop(); 
-                
-                // Cria o link usando a nossa rota segura de download
+                const filename = fullUrl.split(/[/\\]/).pop();
                 const downloadUrl = `${API_URL}/download/${filename}`;
 
                 actionBtn = `<a href="${downloadUrl}" class="btn btn-dark w-100 fw-bold">
@@ -455,12 +499,10 @@ function renderOrders() {
             actionBtn = `<button disabled class="btn btn-secondary w-100">Aguardando Pagamento</button>`;
         }
 
-        // Monta a lista de itens (texto)
-        const itemsHtml = order.items ? order.items.map(i => 
+        const itemsHtml = order.items ? order.items.map(i =>
             `<li class="list-group-item border-0 px-0"><i class="fas fa-check-circle text-primary me-2"></i> ${i.title}</li>`
         ).join('') : '';
 
-        // Cria o Card HTML
         const card = document.createElement('div');
         card.className = 'col-md-6 col-lg-4';
         card.innerHTML = `
@@ -486,17 +528,13 @@ function renderOrders() {
     });
 }
 
-// ==========================================
-// RENDERIZA BOTÃO DE LOGIN NO TOPO (DESLOGADO)
-// ==========================================
+// lazy load script que insere login button via innerHTML se storage == nulo. usa class md-none pra supressao condicional (responsividade nativa bootstrap).
 function renderTopLoginButton() {
     const token = localStorage.getItem('token');
     const placeholder = document.getElementById('auth-placeholder');
-    
-    // Se o placeholder não existir na página, ou se a pessoa JÁ estiver logada, ignora.
+
     if (!placeholder || token) return;
 
-    // Se estiver deslogado, injeta o botão bonitinho dentro do espaço dele
     placeholder.innerHTML = `
         <a href="login.html" class="btn btn-outline-primary btn-sm fw-bold d-md-none">
             <i class="fas fa-sign-in-alt"></i> Entrar
@@ -504,21 +542,16 @@ function renderTopLoginButton() {
     `;
 }
 
-
+// call pra dump em memoria e trigger manual global reload.
 function handleLogout() {
     if (confirm("Tem certeza que deseja sair da sua conta?")) {
-        // apaga a chave (token) do navegador
         localStorage.removeItem('token');
-        
-        // manda o usuário de volta para a vitrine da loja
         window.location.href = 'index.html';
     }
 }
-
-// exporta a função para o HTML conseguir chamá-la no onclick
 window.handleLogout = handleLogout;
 
-
+// event loop init. chaining do domcontentloaded rodando functions puras na stack.
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     setupGlobalEvents();
