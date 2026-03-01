@@ -134,7 +134,7 @@ function checkUrlParams() {
 // fetch no endpoint de produtos interpolando os ponteiros de memoria para fitragem via qs. 
 async function loadProducts() {
     const container = document.getElementById('products-container');
-    if (!container) return;
+    if (!container) return; 
 
     // cache-busting timestamp force
     let url = `${API_URL}/products?t=${Date.now()}`;
@@ -144,17 +144,45 @@ async function loadProducts() {
     try {
         container.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Buscando materiais...</p></div>';
         const res = await fetch(url);
-
+        
         // atualizo o cache global
         window.allProducts = await res.json();
-
-        // delego manipulacao do innerhtml pro render
-        renderProducts(window.allProducts, container);
+        
+        // delego manipulacao do innerhtml pro render, MAS PASSANDO PELO SORT ANTES
+        renderProducts(getSortedProducts(window.allProducts), container);
     } catch (error) {
         console.error("erro ao dar o fetch no catalogo:", error);
         container.innerHTML = '<div class="col-12 text-center py-5 text-danger">Erro ao carregar produtos.</div>';
     }
 }
+
+// motor de ordenacao de matriz in-memory (acionado pelo dropdown do index)
+function getSortedProducts(products) {
+    const sortSelect = document.getElementById('sort-select');
+    const sortVal = sortSelect ? sortSelect.value : 'recent';
+    
+    // clone raso para nao mutar a resposta original da api
+    let sorted = [...products]; 
+    
+    if (sortVal === 'price-asc') {
+        sorted.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+    } else if (sortVal === 'price-desc') {
+        sorted.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+    } else {
+        // default: desc (maior id = mais recente)
+        sorted.sort((a, b) => b.id - a.id); 
+    }
+    return sorted;
+}
+
+// listener atrelado ao onchange do select no html
+window.handleSortChange = function() {
+    const container = document.getElementById('products-container');
+    if(container && window.allProducts.length > 0) {
+        // re-renderiza injetando a matriz reordenada
+        renderProducts(getSortedProducts(window.allProducts), container);
+    }
+};
 
 // factory de nodes html baseada na matriz iterada.
 function renderProducts(products, containerElement) {
@@ -528,18 +556,48 @@ function renderOrders() {
     });
 }
 
-// lazy load script que insere login button via innerHTML se storage == nulo. usa class md-none pra supressao condicional (responsividade nativa bootstrap).
-function renderTopLoginButton() {
+// motor hibrido de render mobile. intercepta estado do token e faz o split de ui components na arvore do dom.
+function renderTopAuthPlaceholder() {
     const token = localStorage.getItem('token');
-    const placeholder = document.getElementById('auth-placeholder');
-
-    if (!placeholder || token) return;
-
-    placeholder.innerHTML = `
-        <a href="login.html" class="btn btn-outline-primary btn-sm fw-bold d-md-none">
-            <i class="fas fa-sign-in-alt"></i> Entrar
-        </a>
-    `;
+    const headerPlaceholder = document.getElementById('auth-placeholder');
+    const adminPlaceholder = document.getElementById('admin-mobile-placeholder');
+    
+    if (!token) {
+        // view deslogada: injeta apenas entrar no root header
+        if (headerPlaceholder) {
+            headerPlaceholder.innerHTML = `
+                <a href="login.html" class="btn btn-outline-primary btn-sm fw-bold px-3 rounded-pill d-md-none">
+                    <i class="fas fa-sign-in-alt"></i> Entrar
+                </a>
+            `;
+        }
+        if (adminPlaceholder) adminPlaceholder.innerHTML = '';
+    } else {
+        // view logada: parse do jwt role
+        const role = localStorage.getItem('userRole');
+        
+        // injeta sair no root header (isolado e com width controlada)
+        if (headerPlaceholder) {
+            headerPlaceholder.innerHTML = `
+                <button onclick="handleLogout()" class="btn btn-outline-danger btn-sm fw-bold px-3 rounded-pill d-md-none">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
+            `;
+        }
+        
+        // delega o mount do btn admin para o container de ordenacao (strict: role == admin)
+        if (adminPlaceholder) {
+            if (role === 'admin') {
+                adminPlaceholder.innerHTML = `
+                    <a href="admin.html" class="btn btn-warning btn-sm fw-bold text-dark d-md-none shadow-sm px-3" style="border-radius: 6px;">
+                        <i class="fas fa-cog"></i> Admin
+                    </a>
+                `;
+            } else {
+                adminPlaceholder.innerHTML = '';
+            }
+        }
+    }
 }
 
 // call pra dump em memoria e trigger manual global reload.
@@ -556,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     setupGlobalEvents();
     checkUrlParams();
-    renderTopLoginButton();
+    renderTopAuthPlaceholder();
     if (document.getElementById('products-container') && !window.location.search) loadProducts();
     if (document.getElementById('favorites-container')) loadFavoritesPage();
 });
