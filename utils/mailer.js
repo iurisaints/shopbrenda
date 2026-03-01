@@ -1,20 +1,19 @@
 const nodemailer = require('nodemailer');
 
-// Configuração forçada para IPv4 e TLS explícito
+// Configuração Cloud-Friendly (Porta 587 com STARTTLS e forçando IPv4 no socket)
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // true para a porta 465
+    port: 587,
+    secure: false, // Falso para a porta 587
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
     tls: {
-        rejectUnauthorized: false // Evita bloqueios de certificados no Railway/Deploy
+        rejectUnauthorized: false // Evita bloqueio de certificados no Railway
     }
 });
 
-// Função global que qualquer parte do sistema pode usar
 const sendEmail = async (to, subject, htmlContent) => {
     try {
         await transporter.sendMail({
@@ -26,7 +25,8 @@ const sendEmail = async (to, subject, htmlContent) => {
         console.log(`✅ E-mail enviado com sucesso para: ${to}`);
         return true;
     } catch (error) {
-        console.error(`❌ Erro ao enviar e-mail para ${to}:`, error.message);
+        // Log simplificado para limpar o seu ecrã no Railway
+        console.error(`❌ Erro ao enviar para ${to}: ${error.message}`);
         return false;
     }
 };
