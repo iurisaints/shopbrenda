@@ -506,30 +506,30 @@ function renderOrders() {
         const searchLower = currentSearch.toLowerCase();
         const matchId = order.id.toString().includes(searchLower);
         const matchItem = order.items && order.items.some(item => item.title.toLowerCase().includes(searchLower));
-
+        
         return !currentSearch || matchId || matchItem;
     });
 
     container.innerHTML = '';
 
     if (filtered.length === 0) {
-        container.innerHTML = emptyState('Nenhum pedido encontrado.');
+        container.innerHTML = `<div class="col-12 text-center py-5"><p class="text-muted">Nenhum pedido encontrado.</p></div>`;
         return;
     }
 
     filtered.forEach(order => {
         const date = new Date(order.created_at).toLocaleDateString('pt-BR');
-
+        
         const isPaid = order.status === 'paid';
         const statusClass = isPaid ? 'bg-success' : 'bg-warning text-dark';
         const statusLabel = isPaid ? 'Pago' : 'Pendente';
-
+        
         // bypass do full path do db pegando apenas pop na mascara do os file structure regex format.
         let actionBtn = '';
         if (isPaid) {
             const fullUrl = order.items && order.items[0] ? order.items[0].file_url : null;
             if (fullUrl) {
-                const filename = fullUrl.split(/[/\\]/).pop();
+                const filename = fullUrl.split(/[/\\]/).pop(); 
                 const downloadUrl = `${API_URL}/download/${filename}`;
 
                 actionBtn = `<a href="${downloadUrl}" class="btn btn-dark w-100 fw-bold">
@@ -539,10 +539,20 @@ function renderOrders() {
                 actionBtn = `<button disabled class="btn btn-secondary w-100">Arquivo Indisponível</button>`;
             }
         } else {
-            actionBtn = `<button disabled class="btn btn-secondary w-100">Aguardando Pagamento</button>`;
+            // A MÁGICA ACONTECE AQUI: 
+            // O sistema procura por qualquer chave padrão que o seu backend possa estar enviando com o link do Mercado Pago
+            const paymentLink = order.payment_link || order.payment_url || order.init_point || order.checkout_url;
+            
+            if (paymentLink) {
+                actionBtn = `<a href="${paymentLink}" target="_blank" class="btn btn-warning w-100 fw-bold text-dark shadow-sm">
+                                <i class="fas fa-credit-card me-2"></i> PAGAR AGORA
+                             </a>`;
+            } else {
+                actionBtn = `<button disabled class="btn btn-secondary w-100">Aguardando Pagamento</button>`;
+            }
         }
 
-        const itemsHtml = order.items ? order.items.map(i =>
+        const itemsHtml = order.items ? order.items.map(i => 
             `<li class="list-group-item border-0 px-0"><i class="fas fa-check-circle text-primary me-2"></i> ${i.title}</li>`
         ).join('') : '';
 
