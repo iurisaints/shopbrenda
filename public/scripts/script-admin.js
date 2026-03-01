@@ -121,9 +121,12 @@ async function handleProductSubmit(event) {
     if (offerField) {
         formData.append('is_offer', offerField.checked ? 1 : 0);
     }
-
+    
+    // Pega todas as fotos selecionadas e manda com o nome 'gallery'
     if (imagesField && imagesField.files.length > 0) {
-        formData.append('image', imagesField.files[0]);
+        for (let i = 0; i < imagesField.files.length; i++) {
+            formData.append('gallery', imagesField.files[i]); 
+        }
     }
 
     if (fileField && fileField.files.length > 0) {

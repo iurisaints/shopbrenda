@@ -4,9 +4,9 @@ const db = require('../config/db');
 const upload = require('../middleware/upload');
 const authenticateToken = require('../middleware/auth');
 
-// O Multer configurado certinho para receber 'image' e 'file'
+// O Multer configurado para receber até 5 imagens na galeria!
 const uploadFields = upload.fields([
-    { name: 'image', maxCount: 1 }, 
+    { name: 'gallery', maxCount: 5 }, 
     { name: 'file', maxCount: 1 }   
 ]);
 
@@ -43,39 +43,54 @@ router.get('/', async (req, res) => {
     }
 });
 
-// --- CRIAR PRODUTO (POST - ADMIN) ---
+// --- CRIAR PRODUTO COM GALERIA (POST) ---
 router.post('/', authenticateToken, uploadFields, async (req, res) => {
     if (req.user.role !== 'admin') return res.sendStatus(403);
 
     const { title, price, category, description, is_offer } = req.body;
+    const offerValue = (is_offer === 'true' || is_offer === '1') ? 1 : 0;
     
     let coverUrl = 'https://via.placeholder.com/150';
     let fileUrl = null;
+    let extraImages = [];
 
-    if (req.files && req.files['image']) {
-        coverUrl = `${req.protocol}://${req.get('host')}/uploads/${req.files['image'][0].filename}`;
+    // Lógica da Galeria: A foto 0 é a Capa, as outras vão pro carrossel
+    if (req.files && req.files['gallery']) {
+        const files = req.files['gallery'];
+        coverUrl = `${req.protocol}://${req.get('host')}/uploads/${files[0].filename}`; 
+        
+        for (let i = 1; i < files.length; i++) {
+            extraImages.push(`${req.protocol}://${req.get('host')}/uploads/${files[i].filename}`);
+        }
     }
+
     if (req.files && req.files['file']) {
         fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.files['file'][0].filename}`;
     }
 
-    const offerValue = (is_offer === 'true' || is_offer === '1') ? 1 : 0;
-
     try {
+        // 1. Salva a Capa na tabela principal
         const [result] = await db.query(
             "INSERT INTO products (title, price, category, description, image_url, file_url, is_offer) VALUES (?, ?, ?, ?, ?, ?, ?)",
             [title, price, category, description, coverUrl, fileUrl, offerValue]
         );
-        res.json({ message: "Produto criado com sucesso!", id: result.insertId });
+        const productId = result.insertId;
+
+        // 2. Salva as fotos extras na tabela de galeria
+        if (extraImages.length > 0) {
+            const values = extraImages.map(url => [productId, url]);
+            await db.query("INSERT INTO product_images (product_id, image_url) VALUES ?", [values]);
+        }
+
+        res.json({ message: "Produto criado com sucesso!", id: productId });
     } catch (err) {
         console.error("Erro ao salvar:", err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// --- EDITAR PRODUTO (PUT - ADMIN) ---
+// --- EDITAR PRODUTO COM GALERIA (PUT) ---
 router.put('/:id', authenticateToken, uploadFields, async (req, res) => {
-    // 1. Verifica se é admin
     if (req.user.role !== 'admin') return res.sendStatus(403);
 
     const productId = req.params.id;
@@ -83,35 +98,46 @@ router.put('/:id', authenticateToken, uploadFields, async (req, res) => {
     const offerValue = (is_offer === 'true' || is_offer === '1') ? 1 : 0;
 
     try {
-        // 2. Busca o produto antigo no banco primeiro (para não apagar os arquivos velhos se o usuário não enviou novos)
         const [oldProduct] = await db.query("SELECT image_url, file_url FROM products WHERE id = ?", [productId]);
-        
-        if (oldProduct.length === 0) {
-            return res.status(404).json({ error: "Produto não encontrado no banco." });
-        }
+        if (oldProduct.length === 0) return res.status(404).json({ error: "Produto não encontrado." });
 
-        // Mantém as URLs antigas como padrão
         let coverUrl = oldProduct[0].image_url;
         let fileUrl = oldProduct[0].file_url;
+        let extraImages = [];
+        let hasNewImages = false;
 
-        // 3. Se veio imagem nova no formulário, atualiza a variável
-        if (req.files && req.files['image']) {
-            coverUrl = `${req.protocol}://${req.get('host')}/uploads/${req.files['image'][0].filename}`;
+        // Lógica de Atualização da Galeria
+        if (req.files && req.files['gallery']) {
+            hasNewImages = true;
+            const files = req.files['gallery'];
+            coverUrl = `${req.protocol}://${req.get('host')}/uploads/${files[0].filename}`;
+            
+            for (let i = 1; i < files.length; i++) {
+                extraImages.push(`${req.protocol}://${req.get('host')}/uploads/${files[i].filename}`);
+            }
         }
-        
-        // 4. Se veio arquivo PDF novo no formulário, atualiza a variável
+
         if (req.files && req.files['file']) {
             fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.files['file'][0].filename}`;
         }
 
-        // 5. Manda a atualização pro Banco de Dados
+        // 1. Atualiza a tabela principal
         await db.query(
             "UPDATE products SET title = ?, price = ?, category = ?, description = ?, image_url = ?, file_url = ?, is_offer = ? WHERE id = ?",
             [title, price, category, description, coverUrl, fileUrl, offerValue, productId]
         );
 
-        res.json({ message: "Produto atualizado com sucesso!" });
+        // 2. Se mandou fotos novas, zera a galeria velha e insere as novas
+        if (hasNewImages) {
+            await db.query("DELETE FROM product_images WHERE product_id = ?", [productId]);
+            
+            if (extraImages.length > 0) {
+                const values = extraImages.map(url => [productId, url]);
+                await db.query("INSERT INTO product_images (product_id, image_url) VALUES ?", [values]);
+            }
+        }
 
+        res.json({ message: "Produto atualizado com sucesso!" });
     } catch (err) {
         console.error("Erro ao atualizar:", err);
         res.status(500).json({ error: err.message });
