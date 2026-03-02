@@ -42,34 +42,6 @@ window.authFetch = async function (url, options = {}) {
     return response;
 };
 
-// validacao hibrida de ui. leio o storage e altero os nós do dom (menu de navegacao) condicionalmente.
-function checkAuth() {
-    const token = localStorage.getItem('token');
-    const userNav = document.getElementById('user-nav');
-    if (!userNav) return;
-
-    if (token) {
-        const name = localStorage.getItem('userName') || 'Profa.';
-        const role = localStorage.getItem('userRole');
-        const adminLink = role === 'admin' ? `<a href="admin.html" class="text-warning fw-bold text-decoration-none d-flex align-items-center gap-1"></i> Admin</a>` : '';
-
-        userNav.className = "d-none d-md-flex align-items-center gap-4";
-        userNav.innerHTML = `
-            ${adminLink}
-            <a href="meus-pedidos.html" class="text-dark text-decoration-none fw-bold">Pedidos</a>
-            <a href="favoritos.html" class="text-danger text-decoration-none fw-bold d-flex align-items-center gap-1"></i> Favoritos</a>
-            <div class="vr mx-2 bg-secondary" style="height: 20px;"></div>
-            <div class="d-flex flex-column align-items-end" style="line-height:1.2;">
-                <span class="text-primary fw-bold" style="font-size:0.9rem;">Olá, ${name}</span>
-                <button onclick="logout()" class="btn btn-link text-muted p-0 text-decoration-none" style="font-size:0.75rem;">(Sair)</button>
-            </div>
-        `;
-    } else {
-        userNav.className = "d-none d-md-flex align-items-center gap-3";
-        userNav.innerHTML = `<a href="login.html" class="text-dark fw-bold text-decoration-none">Entrar</a><a href="cadastro.html" class="btn btn-primary btn-sm fw-bold px-4 rounded-pill">Cadastrar</a>`;
-    }
-}
-
 // flush de memoria e redirect
 function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
@@ -581,6 +553,76 @@ function renderOrders() {
     });
 }
 
+// Função auxiliar segura para pegar dados do usuário (resolve o undefined e o sumiço do admin)
+function getSafeUserData() {
+    const sanitizeName = (rawName) => {
+        const v = String(rawName ?? '').trim();
+        if (!v) return 'Usuário';
+        const lower = v.toLowerCase();
+        if (lower === 'undefined' || lower === 'null') return 'Usuário';
+        return v.split(' ')[0] || 'Usuário';
+    };
+
+    const sanitizeRole = (rawRole) => {
+        const v = String(rawRole ?? '').trim().toLowerCase();
+        if (!v || v === 'undefined' || v === 'null') return 'user';
+        return v;
+    };
+
+    let name = 'Usuário';
+    let role = 'user';
+    
+    // Tenta ler do objeto JSON 'user'
+    try {
+        const userObj = JSON.parse(localStorage.getItem('user'));
+        if (userObj) {
+            name = sanitizeName(userObj.name);
+            role = sanitizeRole(userObj.role);
+            return { name, role };
+        }
+    } catch(e) {}
+
+    // Fallback: Tenta ler das chaves soltas caso o login salve assim
+    const lsName = localStorage.getItem('userName');
+    const lsRole = localStorage.getItem('userRole');
+    name = sanitizeName(lsName);
+    role = sanitizeRole(lsRole);
+
+    return { name, role };
+}
+
+// validacao hibrida de ui. leio o storage e altero os nós do dom (menu de navegacao PC) condicionalmente.
+function checkAuth() {
+    const token = localStorage.getItem('token');
+    const userNav = document.getElementById('user-nav');
+    if (!userNav) return;
+
+    if (token) {
+        const { name, role } = getSafeUserData();
+        
+        // Se o index tiver o "slot" ao lado do filtro, não colocamos Admin no header (evita quebrar layout)
+        const hasAdminFilterSlot = !!document.getElementById('admin-mobile-placeholder');
+        const adminLink = (role === 'admin' && !hasAdminFilterSlot)
+            ? `<a href="admin.html" class="text-warning fw-bold text-decoration-none d-flex align-items-center gap-1"><i class="fas fa-crown"></i> Admin</a>`
+            : '';
+
+        userNav.className = "d-none d-md-flex align-items-center gap-4";
+        userNav.innerHTML = `
+            ${adminLink}
+            <a href="meus-pedidos.html" class="text-dark text-decoration-none fw-bold">Pedidos</a>
+            <a href="favoritos.html" class="text-danger text-decoration-none fw-bold d-flex align-items-center gap-1"><i class="fas fa-heart"></i> Favoritos</a>
+            <div class="vr mx-2 bg-secondary" style="height: 20px;"></div>
+            <div class="d-flex flex-column align-items-end" style="line-height:1.2;">
+                <span class="text-primary fw-bold" style="font-size:0.9rem;">Olá, ${name}</span>
+                <button onclick="handleLogout()" class="btn btn-link text-muted p-0 text-decoration-none" style="font-size:0.75rem;">(Sair)</button>
+            </div>
+        `;
+    } else {
+        userNav.className = "d-none d-md-flex align-items-center gap-3";
+        userNav.innerHTML = `<a href="login.html" class="text-dark fw-bold text-decoration-none">Entrar</a><a href="cadastro.html" class="btn btn-primary btn-sm fw-bold px-4 rounded-pill">Cadastrar</a>`;
+    }
+}
+
 // motor hibrido de render mobile. intercepta estado do token e faz o split de ui components na arvore do dom.
 function renderTopAuthPlaceholder() {
     const token = localStorage.getItem('token');
@@ -588,7 +630,21 @@ function renderTopAuthPlaceholder() {
     const adminPlaceholder = document.getElementById('admin-mobile-placeholder');
     
     if (!token) {
-        // injeta sair no root header com flex garantido e sem quebra
+        // DESLOGADO NO MOBILE: Botão de Entrar! (Corrigido o erro de mostrar Sair)
+        if (headerPlaceholder) {
+            headerPlaceholder.innerHTML = `
+                <div class="d-flex justify-content-end" style="min-width: 80px;">
+                    <a href="login.html" class="btn btn-primary btn-sm fw-bold px-3 rounded-pill d-md-none">
+                        <i class="fas fa-sign-in-alt"></i> Entrar
+                    </a>
+                </div>
+            `;
+        }
+        if (adminPlaceholder) adminPlaceholder.innerHTML = '';
+    } else {
+        // LOGADO NO MOBILE
+        const { role } = getSafeUserData();
+        
         if (headerPlaceholder) {
             headerPlaceholder.innerHTML = `
                 <div class="d-flex justify-content-end" style="min-width: 80px;">
@@ -598,26 +654,12 @@ function renderTopAuthPlaceholder() {
                 </div>
             `;
         }
-        if (adminPlaceholder) adminPlaceholder.innerHTML = '';
-    } else {
-        // view logada: parse do jwt role
-        const role = localStorage.getItem('userRole');
         
-        // injeta sair no root header (isolado e com width controlada)
-        if (headerPlaceholder) {
-            headerPlaceholder.innerHTML = `
-                <button onclick="handleLogout()" class="btn btn-outline-danger btn-sm fw-bold px-3 rounded-pill d-md-none">
-                    <i class="fas fa-sign-out-alt"></i> Sair
-                </button>
-            `;
-        }
-        
-        // delega o mount do btn admin para o container de ordenacao (strict: role == admin)
         if (adminPlaceholder) {
             if (role === 'admin') {
                 adminPlaceholder.innerHTML = `
-                    <a href="admin.html" class="btn btn-warning btn-sm fw-bold text-dark d-md-none shadow-sm px-3" style="border-radius: 6px;">
-                        <i class="fas fa-cog"></i> Admin
+                    <a href="admin.html" class="btn btn-warning btn-sm fw-bold text-dark shadow-sm px-3" style="border-radius: 6px;">
+                        <i class="fas fa-crown"></i> Admin
                     </a>
                 `;
             } else {

@@ -1,3 +1,31 @@
+function normalizeRole(role) {
+    const normalized = String(role ?? '').trim().toLowerCase();
+    return normalized;
+}
+
+function sanitizeName(rawName) {
+    const v = String(rawName ?? '').trim();
+    if (!v) return '';
+    const lower = v.toLowerCase();
+    if (lower === 'undefined' || lower === 'null') return '';
+    return v;
+}
+
+function extractRoleFromLoginResponse(data) {
+    // Aceita variações comuns do backend (role direta, aninhada, etc.)
+    return normalizeRole(data?.role ?? data?.user?.role ?? data?.profile?.role ?? data?.userRole);
+}
+
+function extractNameFromLoginResponse(data) {
+    return sanitizeName(
+        data?.name ??
+        data?.user?.name ??
+        data?.profile?.name ??
+        data?.fullName ??
+        data?.userName
+    );
+}
+
 async function handleLogin(e) {
     // evita que a página recarregue ao enviar o formulário
     e.preventDefault();
@@ -16,10 +44,14 @@ async function handleLogin(e) {
         const data = await res.json();
 
         if (res.ok) {
+            const role = extractRoleFromLoginResponse(data);
+            const name = extractNameFromLoginResponse(data);
+
             // guarda as informações importantes para usar nas outras páginas
             localStorage.setItem('token', data.token);
-            localStorage.setItem('userName', data.name);
-            localStorage.setItem('userRole', data.role);
+            if (name) localStorage.setItem('userName', name);
+            else localStorage.removeItem('userName');
+            localStorage.setItem('userRole', role || 'user');
             localStorage.setItem('userId', data.id);
 
             // verifica se tinha coisas no carrinho antes de logar e junta com a conta
@@ -40,7 +72,7 @@ async function handleLogin(e) {
             showAlertModal("Bem-vindo!", "Seu login foi feito com sucesso.", "success");
             
             // redireciona para o painel se for admin ou para a loja se for cliente
-            if (data.role === 'admin') {
+            if (role === 'admin') {
                 window.location.href = 'admin.html';
             } else {
                 window.location.href = 'index.html';
