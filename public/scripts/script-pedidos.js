@@ -53,11 +53,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     actionBtnHtml = `<button disabled class="btn btn-secondary w-100">Arquivo Indisponível no Servidor</button>`;
                 }
             } else {
-                // Se NÃO está pago, mostra o botão do Mercado Pago (se o link existir)
-                if (order.payment_link) {
+                // Link para pagamento (igual ao app.js: payment_url é salvo no backend ao criar o checkout)
+                const paymentLink = order.payment_link || order.payment_url || order.init_point || order.checkout_url;
+                if (paymentLink) {
                     actionBtnHtml = `
-                        <a href="${order.payment_link}" target="_blank" class="btn btn-warning w-100 fw-bold border-dark text-dark">
-                            <i class="fas fa-qrcode me-2"></i> PAGAR AGORA
+                        <a href="${paymentLink}" target="_blank" class="btn btn-warning w-100 fw-bold border-dark text-dark">
+                            <i class="fas fa-credit-card me-2"></i> PAGAR AGORA
                         </a>`;
                 } else {
                     actionBtnHtml = `<button disabled class="btn btn-secondary w-100 border-0">Aguardando Pagamento</button>`;

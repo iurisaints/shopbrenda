@@ -1,9 +1,12 @@
 // ==========================================
-// CONFIGURAÇÃO DO CARRINHO
+// CONFIGURAÇÃO DO CARRINHO (API quando logado, localStorage quando visitante)
 // ==========================================
 const CART_KEY = 'brenda_shop_cart_v1';
+// API_URL vem do app.js (carregado antes nas páginas que usam o carrinho)
 
-// inicializa o contador ao carregar a página
+window._cartCache = null;
+
+// inicializa o contador ao carregar a página (cache será preenchido pelo app.js init)
 document.addEventListener('DOMContentLoaded', () => {
     updateCartCount();
 });
@@ -20,55 +23,109 @@ function toggleCart() {
     if (modal.style.display === 'flex') {
         modal.style.display = 'none';
     } else {
-        renderCartModal(); // atualiza a lista antes de mostrar
-        modal.style.display = 'flex';
+        const token = localStorage.getItem('token');
+        if (token && typeof loadCartFromAPI === 'function') {
+            loadCartFromAPI().then(() => {
+                renderCartModal();
+                modal.style.display = 'flex';
+            });
+        } else {
+            renderCartModal();
+            modal.style.display = 'flex';
+        }
     }
 }
 
 // adiciona produto (chamado pelo botão "Comprar")
-function addToCart(product) {
-    let cart = getCart();
+async function addToCart(product) {
+    const token = localStorage.getItem('token');
 
-    // verifica se já está no carrinho
-    if (cart.find(item => item.id === product.id)) {
-        if(typeof showToast === 'function') showToast("Este item já está no carrinho!", "info");
-        else alert("Este item já está no carrinho!");
+    if (token) {
+        const cart = getCart();
+        if (cart.find(item => item.id === product.id)) {
+            if (typeof showToast === 'function') showToast("Este item já está no carrinho!", "info");
+            else alert("Este item já está no carrinho!");
+            return;
+        }
+        try {
+            await window.authFetch(`${API_URL}/user/cart`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: product.id })
+            });
+            await loadCartFromAPI();
+            updateCartCount();
+            if (typeof showSuggestionModal === 'function') showSuggestionModal(product);
+            else { if (typeof showToast === 'function') showToast("Adicionado ao carrinho!", "success"); toggleCart(); }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast("Erro ao adicionar ao carrinho.", "error");
+            else alert("Erro ao adicionar ao carrinho.");
+        }
         return;
     }
 
+    let cart = getCart();
+    if (cart.find(item => item.id === product.id)) {
+        if (typeof showToast === 'function') showToast("Este item já está no carrinho!", "info");
+        else alert("Este item já está no carrinho!");
+        return;
+    }
     cart.push(product);
     saveCart(cart);
     updateCartCount();
-
-    // Tenta mostrar sugestões, se não tiver, abre o carrinho
-    if (typeof showSuggestionModal === 'function') {
-        showSuggestionModal(product);
-    } else {
-        if(typeof showToast === 'function') showToast("Adicionado ao carrinho!", "success");
-        toggleCart();
-    }
+    if (typeof showSuggestionModal === 'function') showSuggestionModal(product);
+    else { if (typeof showToast === 'function') showToast("Adicionado ao carrinho!", "success"); toggleCart(); }
 }
 
-function removeFromCart(productId) {
-    let cart = getCart();
-    cart = cart.filter(item => item.id !== productId);
+async function removeFromCart(productId) {
+    const token = localStorage.getItem('token');
+
+    if (token) {
+        try {
+            await window.authFetch(`${API_URL}/user/cart/${productId}`, { method: 'DELETE' });
+            window._cartCache = (window._cartCache || []).filter(item => item.id !== productId);
+            updateCartCount();
+            renderCartModal();
+        } catch (e) {
+            if (typeof showToast === 'function') showToast("Erro ao remover do carrinho.", "error");
+        }
+        return;
+    }
+
+    let cart = getCart().filter(item => item.id !== productId);
     saveCart(cart);
-    
     updateCartCount();
-    renderCartModal(); // re-renderiza para atualizar visualmente
+    renderCartModal();
 }
 
 // ==========================================
-// LÓGICA DE DADOS (LOCALSTORAGE)
+// LÓGICA DE DADOS (API quando logado, localStorage quando visitante)
 // ==========================================
 
 function getCart() {
+    const token = localStorage.getItem('token');
+    if (token && Array.isArray(window._cartCache)) return window._cartCache;
     return JSON.parse(localStorage.getItem(CART_KEY)) || [];
 }
 
 function saveCart(cart) {
+    if (localStorage.getItem('token')) return;
     localStorage.setItem(CART_KEY, JSON.stringify(cart));
 }
+
+async function loadCartFromAPI() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const res = await window.authFetch(`${API_URL}/user/cart`);
+        window._cartCache = res.ok ? await res.json() : [];
+        if (!Array.isArray(window._cartCache)) window._cartCache = [];
+    } catch (e) {
+        window._cartCache = [];
+    }
+    updateCartCount();
+}
+window.loadCartFromAPI = loadCartFromAPI;
 
 function updateCartCount() {
     const cart = getCart();
@@ -175,7 +232,7 @@ async function checkoutCart() {
         const data = await res.json();
 
         if (res.ok && data.url) {
-            // Limpa o carrinho e redireciona para o pagamento
+            window._cartCache = [];
             localStorage.removeItem(CART_KEY);
             window.location.href = data.url; 
         } else {

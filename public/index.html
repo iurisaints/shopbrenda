@@ -84,6 +84,23 @@
                     </div>
                 </div>
 
+                <!-- Lista de categorias em scroll horizontal (mobile) -->
+                <div class="col-12 categories-scroll-mobile d-flex d-md-none mt-2 gap-2 overflow-x-auto py-2" role="navigation" aria-label="Categorias">
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-dark text-white border-0 px-3 py-2 text-decoration-none" onclick="selectCategory('Todas', event); return false;">Todas</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Ensino Fundamental', event); return false;">Fundamental</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Ensino Médio', event); return false;">Médio</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('BNCC', event); return false;">BNCC</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Inclusão', event); return false;">Inclusão</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Bilíngue', event); return false;">Bilíngue</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Inglês', event); return false;">Inglês</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Ciências', event); return false;">Ciências</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Experimento', event); return false;">Experimento</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Pronto para Imprimir', event); return false;">Imprimir</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Colorir', event); return false;">Colorir</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Recortar e Colar', event); return false;">Recortar e Colar</a>
+                    <a href="#" class="categories-scroll-item flex-shrink-0 badge bg-light text-dark border px-3 py-2 text-decoration-none" onclick="selectCategory('Construir', event); return false;">Construir</a>
+                </div>
+
                 <div
                     class="col-12 col-md-4 d-flex justify-content-center justify-content-md-end align-items-center gap-4">
 
@@ -154,7 +171,7 @@
                 <span>Carrinho</span>
             </a>
             <a href="meus-pedidos.html" class="nav-item-mobile">
-                <i class="fas fa-download fs-5 mb-1"></i><span>Baixar</span>
+                <i class="fas fa-download fs-5 mb-1"></i><span>Pedidos</span>
             </a>
         </div>
     </nav>
@@ -203,7 +220,12 @@
 
                 <div class="modal-info">
                     <span id="pm-category" class="badge bg-light text-primary border mb-2 fs-6">Categoria</span>
-                    <h2 id="pm-title" class="fw-bold text-dark mb-3">Título do Produto</h2>
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                        <h2 id="pm-title" class="fw-bold text-dark mb-0 flex-grow-1">Título do Produto</h2>
+                        <button type="button" id="pm-favorite-btn" class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;" title="Favoritar" aria-label="Favoritar">
+                            <i id="pm-favorite-icon" class="far fa-heart text-secondary"></i>
+                        </button>
+                    </div>
 
                     <div class="modal-price-box mb-3" id="pm-price-container"></div>
 

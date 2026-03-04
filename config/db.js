@@ -19,12 +19,12 @@ const db = mysql.createPool({
 
 db.getConnection()
     .then(conn => {
-        console.log("🟢 BINGO! Conexão com o banco de dados MySQL estabelecida com sucesso!");
+        console.log("🟢 Conexão com o banco de dados MySQL estabelecida com sucesso! 🟢");
         conn.release();
     })
     .catch(err => {
-        console.log("🔴 ALERTA VERMELHO! O servidor não conseguiu conectar ao banco de dados.");
-        console.error("👉 MOTIVO EXATO:", err.code, err.message);
+        console.log("🔴 O servidor não conseguiu conectar ao banco de dados. 🔴");
+        console.error("MOTIVO EXATO:", err.code, err.message);
     });
 
 module.exports = db;

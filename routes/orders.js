@@ -1,8 +1,9 @@
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const db = require('../config/db');
 const authenticateToken = require('../middleware/auth');
-const sendEmail = require('../utils/mailer'); // Importamos o nosso carteiro central
+const sendEmail = require('../utils/mailer');
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 
 const client = new MercadoPagoConfig({ 
@@ -57,6 +58,12 @@ router.post('/create-checkout-session', authenticateToken, async (req, res) => {
         const itemValues = cartItems.map(item => [orderId, item.id, item.title, item.price]);
         await db.query("INSERT INTO order_items (order_id, product_id, title, price) VALUES ?", [itemValues]);
 
+        const [userRow] = await db.query("SELECT email FROM users WHERE id = ?", [user.id]);
+        const payerEmail = (userRow && userRow[0] && userRow[0].email) ? userRow[0].email : null;
+        if (!payerEmail) {
+            return res.status(400).json({ error: 'E-mail do utilizador não encontrado. Atualize o seu perfil.' });
+        }
+
         let currentUrl = process.env.SITE_URL || 'http://localhost:3000';
         let webhookUrl = `${currentUrl}/api/orders/webhook`;
         
@@ -70,7 +77,7 @@ router.post('/create-checkout-session', authenticateToken, async (req, res) => {
                 currency_id: 'BRL',
                 picture_url: item.image_url
             })),
-            payer: { name: user.name, email: 'test_user_exemplo@test.com' },
+            payer: { name: user.name, email: payerEmail },
             back_urls: {
                 success: `${currentUrl}/meus-pedidos.html`,
                 failure: `${currentUrl}/index.html`,
@@ -102,11 +109,11 @@ router.post('/create-checkout-session', authenticateToken, async (req, res) => {
                 <p>Assim que o pagamento for aprovado, receberá um novo e-mail com os links para descarregar os seus ficheiros.</p>
             </div>
         `;
-        // Nota: Assumindo que req.user tem o email. Se não tiver, terá de fazer um SELECT na base de dados pelo user.id
-        const [userDb] = await db.query("SELECT email FROM users WHERE id = ?", [user.id]);
-        if (userDb.length > 0) {
-            sendEmail(userDb[0].email, `Aguardando Pagamento - Pedido #${orderId}`, mailHtml);
-        }
+        sendEmail(payerEmail, `Aguardando Pagamento - Pedido #${orderId}`, mailHtml);
+
+        try {
+            await db.query('DELETE FROM user_cart_items WHERE user_id = ?', [user.id]);
+        } catch (e) { /* ignora se a tabela não existir ainda */ }
 
         res.json({ url: paymentUrl });
     } catch (err) {
@@ -118,37 +125,133 @@ router.post('/create-checkout-session', authenticateToken, async (req, res) => {
 // ==========================================
 // 3. WEBHOOK (O MERCADO PAGO CHAMA AQUI)
 // ==========================================
+
+/** Verifica assinatura x-signature do Mercado Pago (HMAC SHA256). Retorna true se válida ou se secret não configurado. */
+function verifyWebhookSignature(req) {
+    const secret = process.env.MP_WEBHOOK_SECRET;
+    if (!secret || !secret.trim()) {
+        return { verified: true, reason: 'MP_WEBHOOK_SECRET não configurado (webhook aceito sem verificação)' };
+    }
+    const xSignature = req.headers['x-signature'];
+    const xRequestId = req.headers['x-request-id'] || '';
+    const dataId = String(req.query['data.id'] ?? req.body?.data?.id ?? '').trim();
+    if (!xSignature || !dataId) {
+        return { verified: false, reason: 'x-signature ou data.id ausente' };
+    }
+    const parts = xSignature.split(',');
+    let ts = '', hash = '';
+    parts.forEach(part => {
+        const [key, value] = part.split('=').map(s => (s || '').trim());
+        if (key === 'ts') ts = value || '';
+        if (key === 'v1') hash = value || '';
+    });
+    if (!ts || !hash) {
+        return { verified: false, reason: 'x-signature sem ts ou v1' };
+    }
+    const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+    const expected = crypto.createHmac('sha256', secret).update(manifest).digest('hex');
+    if (expected !== hash) {
+        return { verified: false, reason: 'HMAC não confere' };
+    }
+    return { verified: true, reason: 'assinatura válida' };
+}
+
 router.post('/webhook', async (req, res) => {
     const paymentId = req.query.id || req.body?.data?.id;
-    const type = req.query.topic || req.body?.type;
+    const type = (req.query.topic || req.body?.type || '').toLowerCase();
 
+    const logCtx = `[webhook] topic=${type} paymentId=${paymentId || 'n/a'}`;
+
+    // Resposta 200 imediata para o MP não reenviar por timeout
     res.sendStatus(200);
 
-    if (type === 'payment' && paymentId) {
+    const sig = verifyWebhookSignature(req);
+    if (!sig.verified) {
+        console.warn(`${logCtx} REJEITADO: ${sig.reason}. Configure MP_WEBHOOK_SECRET no painel do MP e em .env para produção.`);
+        return;
+    }
+    if (process.env.MP_WEBHOOK_SECRET) {
+        console.log(`${logCtx} assinatura OK`);
+    }
+
+    if (type !== 'payment' || !paymentId) {
+        console.log(`${logCtx} ignorado (tipo não é payment ou id ausente)`);
+        return;
+    }
+
+    (async () => {
         try {
             const payment = new Payment(client);
             const paymentInfo = await payment.get({ id: paymentId });
+            const status = (paymentInfo.status || '').toLowerCase();
+            const orderIdRaw = paymentInfo.external_reference;
+            const orderId = orderIdRaw != null ? parseInt(String(orderIdRaw), 10) : NaN;
 
-            const status = paymentInfo.status;
-            const orderId = paymentInfo.external_reference;
+            console.log(`[webhook] paymentId=${paymentId} status=${status} external_reference=${orderIdRaw}`);
 
-            if (status === 'approved' && orderId) {
-                const [checkOrder] = await db.query("SELECT status FROM orders WHERE id = ?", [orderId]);
-                if (checkOrder.length > 0 && checkOrder[0].status === 'paid') return; 
-
-                await db.query("UPDATE orders SET status = 'paid' WHERE id = ?", [orderId]);
-                
-                const [users] = await db.query(`SELECT u.name, u.email FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = ?`, [orderId]);
-                const [items] = await db.query(`SELECT oi.title, p.file_url FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?`, [orderId]);
-
-                if (users.length > 0) {
-                    enviarEmailComProduto(users[0].email, users[0].name, orderId, items);
-                }
+            if (!Number.isInteger(orderId) || orderId < 1) {
+                console.warn(`[webhook] paymentId=${paymentId} external_reference inválido ou ausente, ignorado`);
+                return;
             }
-        } catch (error) {
-            console.error("❌ Erro ao processar pagamento do Webhook:", error);
+
+            const [orderRows] = await db.query('SELECT id, status FROM orders WHERE id = ?', [orderId]);
+            if (orderRows.length === 0) {
+                console.warn(`[webhook] orderId=${orderId} não existe no banco, ignorado`);
+                return;
+            }
+            const currentStatus = orderRows[0].status;
+
+            switch (status) {
+                case 'approved': {
+                    if (currentStatus === 'paid') {
+                        console.log(`[webhook] orderId=${orderId} já estava pago (idempotente), ignorado`);
+                        return;
+                    }
+                    const [updated] = await db.query(
+                        "UPDATE orders SET status = 'paid' WHERE id = ? AND status = 'pending'",
+                        [orderId]
+                    );
+                    if (updated.affectedRows === 0) {
+                        console.warn(`[webhook] orderId=${orderId} não atualizado (status atual: ${currentStatus})`);
+                        return;
+                    }
+                    console.log(`[webhook] orderId=${orderId} marcado como pago`);
+
+                    const [users] = await db.query(
+                        'SELECT u.name, u.email FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = ?',
+                        [orderId]
+                    );
+                    const [items] = await db.query(
+                        'SELECT oi.title, p.file_url FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?',
+                        [orderId]
+                    );
+                    if (users.length > 0) {
+                        await enviarEmailComProduto(users[0].email, users[0].name, orderId, items);
+                        console.log(`[webhook] orderId=${orderId} e-mail de entrega enviado`);
+                    }
+                    break;
+                }
+                case 'rejected':
+                case 'cancelled':
+                    console.log(`[webhook] orderId=${orderId} status=${status} (não aprovado), nenhuma alteração no pedido`);
+                    break;
+                case 'refunded':
+                case 'charged_back':
+                    console.log(`[webhook] orderId=${orderId} status=${status} — considerar reverter entrega manualmente se necessário`);
+                    break;
+                case 'pending':
+                case 'in_process':
+                case 'in_mediation':
+                    console.log(`[webhook] orderId=${orderId} status=${status} (aguardando), nenhuma ação`);
+                    break;
+                default:
+                    console.log(`[webhook] orderId=${orderId} status desconhecido: ${status}`);
+            }
+        } catch (err) {
+            console.error(`[webhook] ERRO ao processar paymentId=${paymentId}:`, err.message);
+            if (err.response) console.error('[webhook] resposta MP:', err.response?.status, err.response?.data);
         }
-    }
+    })();
 });
 
 // ==========================================

@@ -8,11 +8,17 @@ const sendEmail = require('../utils/mailer');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
+if (!JWT_SECRET || JWT_SECRET.length < 16) {
+    console.error('Segurança: defina JWT_SECRET no .env com pelo menos 16 caracteres. O servidor pode falhar em login/registro.');
+}
+
 // ==========================================
 // 1. REGISTO (CRIAR CONTA E ENVIAR E-MAIL)
 // ==========================================
 router.post('/register', async (req, res) => {
     const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: 'Nome, e-mail e senha são obrigatórios.' });
+    if (String(password).length < 6) return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres.' });
 
     try {
         const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
@@ -40,10 +46,13 @@ router.post('/register', async (req, res) => {
 // 2. LOGIN NORMAL
 // ==========================================
 router.post('/login', async (req, res) => {
+    if (!JWT_SECRET) return res.status(503).json({ error: 'Serviço temporariamente indisponível.' });
+
     const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
 
     try {
-        const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+        const [users] = await db.query('SELECT id, name, email, password, role FROM users WHERE email = ?', [email]);
         if (users.length === 0) return res.status(401).json({ error: 'Credenciais inválidas.' });
 
         const user = users[0];

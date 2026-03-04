@@ -54,19 +54,23 @@ async function handleLogin(e) {
             localStorage.setItem('userRole', role || 'user');
             localStorage.setItem('userId', data.id);
 
-            // verifica se tinha coisas no carrinho antes de logar e junta com a conta
+            // carrinho de visitante: envia cada item para o carrinho do usuário na API
             const guestCart = JSON.parse(localStorage.getItem('cart_guest')) || [];
-            
-            if (guestCart.length > 0) {
-                const userKey = `cart_${data.id}`;
-                const userCart = JSON.parse(localStorage.getItem(userKey)) || [];
-                
-                // mescla os itens do visitante com os do usuário
-                const mergedCart = [...userCart, ...guestCart];
-                
-                // atualiza o carrinho oficial e limpa o temporário
-                localStorage.setItem(userKey, JSON.stringify(mergedCart));
-                localStorage.removeItem('cart_guest');
+            if (guestCart.length > 0 && typeof window.authFetch === 'function') {
+                try {
+                    for (const item of guestCart) {
+                        if (item && item.id) {
+                            await window.authFetch(`${API_URL}/user/cart`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ product_id: item.id })
+                            });
+                        }
+                    }
+                    localStorage.removeItem('cart_guest');
+                } catch (err) {
+                    console.warn('Falha ao mesclar carrinho na conta:', err);
+                }
             }
 
             showAlertModal("Bem-vindo!", "Seu login foi feito com sucesso.", "success");

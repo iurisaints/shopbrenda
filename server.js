@@ -19,8 +19,13 @@ const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
 
-// Middlewares Globais
-app.use(cors());
+// Middlewares Globais — CORS restrito em produção (Railway)
+const isProd = process.env.NODE_ENV === 'production';
+let allowedOrigin = process.env.SITE_URL || null;
+if (allowedOrigin) {
+    try { allowedOrigin = new URL(allowedOrigin).origin; } catch (_) { allowedOrigin = process.env.SITE_URL; }
+}
+app.use(cors(isProd && allowedOrigin ? { origin: allowedOrigin, credentials: true } : {}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -31,51 +36,52 @@ app.use('/api/products', productRoutes); // /api/products
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/orders', require('./routes/orders'));
+app.use('/api/user', require('./routes/userData'));
 
 // TESTE DE VIDA DO SERVIDOR
 app.get('/teste', (req, res) => {
     res.send("<h1>O servidor Node.js está vivo e respondendo!</h1>");
 });
 
-// ROTA DE DOWNLOAD (COM LOGS PARA DEBUG)
+// ROTA DE DOWNLOAD — seguro contra path traversal (ex.: ../../../etc/passwd)
+const fs = require('fs');
+const UPLOADS_DIR = path.resolve(__dirname, 'uploads');
+
 app.get('/api/download/:filename', (req, res) => {
-    const filename = req.params.filename;
-    // Garante que não haja espaços extras ou caracteres estranhos
-    const cleanFilename = filename.trim(); 
-    
-    const filePath = path.join(__dirname, 'uploads', cleanFilename);
-
-    console.log("--- TENTATIVA DE DOWNLOAD ---");
-    console.log("1. Arquivo solicitado:", cleanFilename);
-    console.log("2. Caminho completo buscado:", filePath);
-
-    // Verifica se o arquivo existe antes de tentar baixar
-    const fs = require('fs');
-    if (fs.existsSync(filePath)) {
-        console.log("3. STATUS: Arquivo ENCONTRADO! Enviando...");
-        res.download(filePath, cleanFilename, (err) => {
-            if (err) {
-                console.error("4. ERRO NO ENVIO:", err);
-                if (!res.headersSent) res.status(500).send("Erro ao baixar arquivo.");
-            } else {
-                console.log("5. SUCESSO: Download concluído.");
-            }
-        });
-    } else {
-        console.error("3. STATUS: ARQUIVO NÃO EXISTE NA PASTA!");
-        // Lista arquivos que REALMENTE estão na pasta para ajudar a achar o erro
-        const filesInFolder = fs.readdirSync(path.join(__dirname, 'uploads'));
-        console.log("   -> Arquivos disponíveis na pasta uploads:", filesInFolder);
-        
-        res.status(404).send(`Erro: O arquivo '${cleanFilename}' não foi encontrado no servidor.`);
+    // Usar apenas o nome do ficheiro, sem barras (evita path traversal)
+    const safeFilename = path.basename(req.params.filename.trim());
+    if (!safeFilename) {
+        res.status(400).send('Nome de ficheiro inválido.');
+        return;
     }
+
+    const filePath = path.join(UPLOADS_DIR, safeFilename);
+    const realPath = path.resolve(filePath);
+
+    // Garantir que o ficheiro está dentro de uploads/
+    if (!realPath.startsWith(UPLOADS_DIR)) {
+        res.status(400).send('Pedido inválido.');
+        return;
+    }
+
+    if (!fs.existsSync(realPath) || !fs.statSync(realPath).isFile()) {
+        if (process.env.NODE_ENV !== 'production') {
+            console.warn('Download não encontrado:', safeFilename);
+        }
+        res.status(404).send('Ficheiro não encontrado.');
+        return;
+    }
+
+    res.download(realPath, safeFilename, (err) => {
+        if (err && !res.headersSent) res.status(500).send('Erro ao transferir ficheiro.');
+    });
 });
 
 // Inicialização
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Servidor voando na porta ${PORT}`);
-    console.log(`📂 Lendo arquivos da pasta: ${__dirname}`);
+    console.log(`Servidor voando na porta ${PORT}`);
+    console.log(`Lendo arquivos da pasta: ${__dirname}`);
 });
 
 

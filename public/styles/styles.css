@@ -203,6 +203,30 @@ button {
     animation: slideDown 0.2s ease;
 }
 
+/* Mobile: dropdown de categorias com scroll para não ficar atrás do footer */
+@media (max-width: 767.98px) {
+    .main-header .dropdown-menu {
+        max-height: min(70vh, 400px);
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+        scrollbar-width: thin;
+        -ms-overflow-style: none;
+    }
+    .main-header .dropdown-menu::-webkit-scrollbar {
+        width: 6px;
+    }
+    .main-header .dropdown-menu::-webkit-scrollbar-track {
+        background: var(--gray-border);
+        border-radius: 3px;
+    }
+    .main-header .dropdown-menu::-webkit-scrollbar-thumb {
+        background: var(--blue-navy);
+        border-radius: 3px;
+    }
+}
+
 .dropdown-item {
     display: block;
     width: 100%;
@@ -672,6 +696,34 @@ button {
 /* ========================================= */
 /* AJUSTES MOBILE: CATEGORIAS E MODAL        */
 /* ========================================= */
+
+/* Scroll horizontal de categorias no mobile — suave, barra escondida */
+.categories-scroll-mobile {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.categories-scroll-mobile::-webkit-scrollbar {
+    display: none;
+}
+.categories-scroll-item {
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+/* Badges de categoria nos cards (clicáveis, tamanho/alinhamento padronizados) */
+.product-category-badge {
+    display: inline-block;
+    font-size: 0.75rem !important;
+    text-align: center;
+    transition: background-color 0.2s, color 0.2s;
+}
+.product-category-badge:hover {
+    background-color: var(--blue-light) !important;
+    color: var(--blue-primary) !important;
+}
+
 /* ========================================= */
 /* FIX ESTRUTURAL DO MODAL CUSTOMIZADO (MOBILE) */
 /* ========================================= */
@@ -716,6 +768,7 @@ button {
 
     #pm-desc {
         text-align: justify;
+        margin: 15px;
     }
 
     /* Ajuste fino do botão de fechar */

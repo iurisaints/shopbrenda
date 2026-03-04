@@ -176,15 +176,22 @@ function renderProducts(products, containerElement) {
             ? `<small class="text-decoration-line-through text-muted me-2">R$ ${(priceNum * 1.2).toFixed(2)}</small><span class="fw-bold text-danger fs-5">R$ ${currentPrice}</span>`
             : `<span class="fw-bold text-dark fs-5">R$ ${currentPrice}</span>`;
 
-        // sync do dom baseado em storage (likes)
+        const imgUrl = p.image_url || 'https://via.placeholder.com/300x300?text=Sem+Imagem';
         const heartIcon = isFavorite(p.id) ? 'fas fa-heart' : 'far fa-heart';
         const heartColor = isFavorite(p.id) ? 'text-danger' : 'text-secondary';
-        const imgUrl = p.image_url || 'https://via.placeholder.com/300x300?text=Sem+Imagem';
 
-        // faco o split da string categorica separando por virgula e mapeio pra nodes (span) injetando wrap fluid e safe layout via css
+        // no index: categorias clicáveis só no desktop; em outras páginas (ex.: favoritos) clicável em todo lugar
+        const isIndexMobile = containerElement.id === 'products-container' && window.innerWidth < 768;
+        const badgeClass = 'badge bg-light text-secondary border px-2 py-1 product-category-badge text-center';
+        const badgeStyle = 'font-size: 0.75rem; white-space: normal; text-decoration: none;';
         const categoriasHtml = p.category
-            ? p.category.split(',').map(cat => `<span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.7rem; white-space: normal;">${cat.trim()}</span>`).join('')
-            : `<span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.7rem;">Geral</span>`;
+            ? p.category.split(',').map(cat => {
+                const name = cat.trim();
+                const safe = (name || 'Geral').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                if (isIndexMobile) return `<span class="${badgeClass}" style="${badgeStyle}">${name || 'Geral'}</span>`;
+                return `<a href="#" class="${badgeClass}" style="${badgeStyle}" onclick="event.preventDefault(); selectCategory('${safe}', event); return false;">${name || 'Geral'}</a>`;
+            }).join('')
+            : (isIndexMobile ? `<span class="${badgeClass}" style="${badgeStyle}">Geral</span>` : `<a href="#" class="${badgeClass}" style="${badgeStyle}" onclick="event.preventDefault(); selectCategory('Todas', event); return false;">Geral</a>`);
 
         const col = document.createElement('div');
         col.className = 'col-6 col-md-4 col-lg-3';
@@ -194,7 +201,7 @@ function renderProducts(products, containerElement) {
                 <div class="position-relative overflow-hidden" style="cursor: pointer;" onclick="openProductDetail(${p.id})">
                     <img src="${imgUrl}" class="card-img-top" alt="${p.title}" style="height: 200px; object-fit: cover;">
                     <button class="btn btn-light rounded-circle position-absolute top-0 start-0 m-2 shadow-sm d-flex align-items-center justify-content-center" 
-                            style="width: 35px; height: 35px;" onclick="toggleFavorite(${p.id}, this)">
+                            style="width: 35px; height: 35px;" onclick="event.stopPropagation(); toggleFavorite(${p.id}, this)">
                         <i class="${heartIcon} ${heartColor}"></i>
                     </button>
                 </div>
@@ -254,18 +261,31 @@ function openProductDetail(id) {
 
     document.getElementById('pm-title').innerText = product.title;
     document.getElementById('pm-desc').innerText = product.description || "";
-    
-    // aplico a mesma engine de parse de tags (split + map + flex wrap) do layout de cards principal
+
+    // botão de favorito apenas no modal: estado inicial e clique
+    const favBtn = document.getElementById('pm-favorite-btn');
+    const favIcon = document.getElementById('pm-favorite-icon');
+    if (favBtn && favIcon) {
+        const isFav = isFavorite(product.id);
+        favIcon.className = isFav ? 'fas fa-heart text-danger' : 'far fa-heart text-secondary';
+        favBtn.onclick = (e) => {
+            e.stopPropagation();
+            toggleFavorite(product.id, favBtn);
+        };
+    }
+
+    // categorias no modal: clicáveis em desktop e mobile (filtram e fecham o modal)
     const catContainer = document.getElementById('pm-category');
-    catContainer.innerHTML = ''; 
-    catContainer.className = 'd-flex flex-wrap justify-content-center gap-1 mb-3 w-100'; 
-    
+    catContainer.innerHTML = '';
+    catContainer.className = 'd-flex flex-wrap justify-content-center gap-1 mb-3 w-100';
+    const pmBadgeClass = 'badge bg-light text-primary border px-2 py-1 text-center';
+    const pmBadgeStyle = 'white-space: normal; font-size: 0.8rem; text-decoration: none;';
     if (product.category) {
-        const categorias = product.category.split(',');
-        categorias.forEach(cat => {
-            if (cat.trim()) {
-                catContainer.innerHTML += `<span class="badge bg-light text-primary border px-2 py-1" style="white-space: normal; font-size: 0.8rem;">${cat.trim()}</span>`;
-            }
+        product.category.split(',').forEach(cat => {
+            const name = cat.trim();
+            if (!name) return;
+            const safe = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            catContainer.innerHTML += `<a href="#" class="${pmBadgeClass}" style="${pmBadgeStyle}" onclick="event.preventDefault(); selectCategory('${safe}', event); document.getElementById('product-detail-modal').style.display='none'; return false;">${name}</a>`;
         });
     }
     
@@ -336,16 +356,56 @@ function renderPriceInModal(product) {
 }
 
 // ==================================================
-// 5. utils e cross-sell module
+// 5. utils e cross-sell module (favoritos: API ou localStorage)
 // ==================================================
 
-// wrapper de deserializacao padrao para getters do webstorage
-function getFavorites() { return JSON.parse(localStorage.getItem('favorites')) || []; }
+// Cache de favoritos quando logado (preenchido no init)
+window._favoritesCache = null;
+
+function getFavorites() {
+    const token = localStorage.getItem('token');
+    if (token && Array.isArray(window._favoritesCache)) return window._favoritesCache;
+    return JSON.parse(localStorage.getItem('favorites')) || [];
+}
 function isFavorite(id) { return getFavorites().includes(id); }
 
-// toggle de index em array local e mutation do pointer persistente
-function toggleFavorite(id, btnElement) {
+async function fetchFavoritesFromAPI() {
+    const res = await window.authFetch(`${API_URL}/user/favorites`);
+    if (!res.ok) return [];
+    const ids = await res.json();
+    return Array.isArray(ids) ? ids : [];
+}
+
+// toggle: API (logado) ou localStorage (visitante)
+async function toggleFavorite(id, btnElement) {
     if (event) event.stopPropagation();
+    const token = localStorage.getItem('token');
+
+    if (token) {
+        const isFav = getFavorites().includes(id);
+        try {
+            if (isFav) {
+                await window.authFetch(`${API_URL}/user/favorites/${id}`, { method: 'DELETE' });
+                window._favoritesCache = (window._favoritesCache || []).filter(x => x !== id);
+                if (btnElement) btnElement.innerHTML = '<i class="far fa-heart text-secondary"></i>';
+                showToast("Removido dos favoritos.");
+            } else {
+                await window.authFetch(`${API_URL}/user/favorites`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: id })
+                });
+                window._favoritesCache = [...(window._favoritesCache || []), id];
+                if (btnElement) btnElement.innerHTML = '<i class="fas fa-heart text-danger"></i>';
+                showToast("Salvo nos favoritos!", "success");
+            }
+            if (window.location.pathname.includes('favoritos.html')) loadFavoritesPage();
+        } catch (e) {
+            showToast("Erro ao atualizar favoritos.", "error");
+        }
+        return;
+    }
+
     let favs = getFavorites();
     const index = favs.indexOf(id);
     if (index === -1) {
@@ -415,7 +475,7 @@ window.showSuggestionModal = function (currentProduct) {
     const rawCats = currentProduct.category ? currentProduct.category.split(',') : [];
     const currentCats = rawCats.map(c => c.trim().toLowerCase());
 
-    const currentCart = JSON.parse(localStorage.getItem('brenda_shop_cart_v1')) || [];
+    const currentCart = (typeof getCart === 'function' ? getCart() : []) || [];
 
     // reduco via iteracao logica estrita: sem o id de context base e sem os hit ja existentes no json serializado
     const suggestions = allProductsCache.filter(p => {
@@ -761,12 +821,33 @@ function handleLogout() {
 }
 window.handleLogout = handleLogout;
 
-// event loop init. chaining do domcontentloaded rodando functions puras na stack.
+// event loop init: auth, depois carrega favoritos/carrinho da API se logado, depois produtos/página
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     setupGlobalEvents();
     checkUrlParams();
     renderTopAuthPlaceholder();
-    if (document.getElementById('products-container') && !window.location.search) loadProducts();
-    if (document.getElementById('favorites-container')) loadFavoritesPage();
+
+    (async () => {
+        const token = localStorage.getItem('token');
+        const hasProducts = document.getElementById('products-container');
+        const hasFavorites = document.getElementById('favorites-container');
+
+        if (token && (hasProducts || hasFavorites)) {
+            try {
+                const res = await window.authFetch(`${API_URL}/user/favorites`);
+                window._favoritesCache = res.ok ? (await res.json()) : [];
+                if (!Array.isArray(window._favoritesCache)) window._favoritesCache = [];
+            } catch (e) {
+                window._favoritesCache = [];
+            }
+        } else {
+            window._favoritesCache = null;
+        }
+
+        if (typeof loadCartFromAPI === 'function') loadCartFromAPI();
+
+        if (hasProducts && !window.location.search) loadProducts();
+        if (hasFavorites) loadFavoritesPage();
+    })();
 });

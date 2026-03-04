@@ -1,1 +1,11 @@
 /node_modules
+
+# Segurança: nunca commitar credenciais
+.env
+.env.*
+!.env.example
+serviceAccountKey.json
+*.pem
+
+# Uploads (arquivos enviados em produção)
+/uploads/*

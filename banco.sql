@@ -53,6 +53,7 @@ CREATE TABLE orders (
     user_id INT NOT NULL,
     total DECIMAL(10, 2) NOT NULL,
     status VARCHAR(50) DEFAULT 'pending', -- pending, paid, cancelled
+    payment_url VARCHAR(500) NULL,          -- link do Mercado Pago para o cliente pagar (botão "PAGAR AGORA" em meus-pedidos)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
