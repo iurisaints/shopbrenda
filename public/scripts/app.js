@@ -180,16 +180,18 @@ function renderProducts(products, containerElement) {
         const heartIcon = isFavorite(p.id) ? 'fas fa-heart' : 'far fa-heart';
         const heartColor = isFavorite(p.id) ? 'text-danger' : 'text-secondary';
 
-        // no index: categorias clicáveis só no desktop; em outras páginas (ex.: favoritos) clicável em todo lugar
+        // Separa, limpa, ordena por tamanho (maior → menor = pirâmide invertida) e monta o HTML
         const isIndexMobile = containerElement.id === 'products-container' && window.innerWidth < 768;
         const badgeClass = 'badge bg-light text-secondary border px-2 py-1 product-category-badge text-center';
         const badgeStyle = 'font-size: 0.75rem; white-space: normal; text-decoration: none;';
-        const categoriasHtml = p.category
-            ? p.category.split(',').map(cat => {
-                const name = cat.trim();
-                const safe = (name || 'Geral').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                if (isIndexMobile) return `<span class="${badgeClass}" style="${badgeStyle}">${name || 'Geral'}</span>`;
-                return `<a href="#" class="${badgeClass}" style="${badgeStyle}" onclick="event.preventDefault(); selectCategory('${safe}', event); return false;">${name || 'Geral'}</a>`;
+        const categoryNames = p.category
+            ? p.category.split(',').map(cat => cat.trim()).filter(cat => cat.length > 0).sort((a, b) => b.length - a.length)
+            : [];
+        const categoriasHtml = categoryNames.length > 0
+            ? categoryNames.map(name => {
+                const safe = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                if (isIndexMobile) return `<span class="${badgeClass}" style="${badgeStyle}">${name}</span>`;
+                return `<a href="#" class="${badgeClass}" style="${badgeStyle}" onclick="event.preventDefault(); selectCategory('${safe}', event); return false;">${name}</a>`;
             }).join('')
             : (isIndexMobile ? `<span class="${badgeClass}" style="${badgeStyle}">Geral</span>` : `<a href="#" class="${badgeClass}" style="${badgeStyle}" onclick="event.preventDefault(); selectCategory('Todas', event); return false;">Geral</a>`);
 
@@ -212,7 +214,7 @@ function renderProducts(products, containerElement) {
                     <div class="mt-auto pt-2">
                         <div class="mb-2">${priceHtml}</div>
                         
-                        <div class="d-flex flex-wrap gap-1 mb-3">
+                        <div class="d-flex flex-wrap gap-1 mb-3 justify-content-start">
                             ${categoriasHtml}
                         </div>
                         
@@ -274,16 +276,15 @@ function openProductDetail(id) {
         };
     }
 
-    // categorias no modal: clicáveis em desktop e mobile (filtram e fecham o modal)
+    // categorias no modal: centralizadas, ordenadas por tamanho (pirâmide invertida), clicáveis
     const catContainer = document.getElementById('pm-category');
     catContainer.innerHTML = '';
     catContainer.className = 'd-flex flex-wrap justify-content-center gap-1 mb-3 w-100';
     const pmBadgeClass = 'badge bg-light text-primary border px-2 py-1 text-center';
     const pmBadgeStyle = 'white-space: normal; font-size: 0.8rem; text-decoration: none;';
     if (product.category) {
-        product.category.split(',').forEach(cat => {
-            const name = cat.trim();
-            if (!name) return;
+        const categorias = product.category.split(',').map(cat => cat.trim()).filter(cat => cat.length > 0).sort((a, b) => b.length - a.length);
+        categorias.forEach(name => {
             const safe = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             catContainer.innerHTML += `<a href="#" class="${pmBadgeClass}" style="${pmBadgeStyle}" onclick="event.preventDefault(); selectCategory('${safe}', event); document.getElementById('product-detail-modal').style.display='none'; return false;">${name}</a>`;
         });
