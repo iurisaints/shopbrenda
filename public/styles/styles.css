@@ -1,5 +1,5 @@
 /* =========================================
-   1. VARIÁVEIS E RESET GLOBAL — Conhecência
+   1. VARIÁVEIS E RESET GLOBAL — Conheciência
    ========================================= */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
@@ -46,7 +46,7 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-/* Marca Conhecência */
+/* Marca Conheciência */
 .logo-mark {
     display: inline-flex;
     align-items: center;
@@ -129,6 +129,16 @@ button {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 20px;
+}
+
+/* Tablet: manter pesquisa e botões (Pedidos, Carrinho) na mesma linha */
+@media (min-width: 768px) {
+    .header-actions-row {
+        flex-wrap: nowrap;
+    }
+    .header-nav-col {
+        min-width: 0; /* permite flex shrink se necessário */
+    }
 }
 
 /* Logo */
