@@ -1,35 +1,31 @@
 /* =========================================
-   1. VARIÁVEIS E RESET GLOBAL
+   1. VARIÁVEIS E RESET GLOBAL — Conhecência
    ========================================= */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
 :root {
-    /* PALETA DE CORES OFICIAL */
+    /* PALETA — visual moderno e limpo */
     --blue-navy: #0f172a;
-    /* Principal: Textos, Header, Botões Dark */
     --blue-primary: #2563eb;
-    /* Destaque: Botões de Ação, Links */
     --blue-hover: #1d4ed8;
-    /* Estado Hover */
     --blue-light: #eff6ff;
-    /* Fundos suaves */
-
     --red-alert: #ef4444;
-    /* Ofertas, Erros, Botão Excluir */
     --green-success: #10b981;
-    /* Sucesso */
-
-    --bg-body: #f8fafc;
-    /* Fundo da Página */
+    --bg-body: #f1f5f9;
     --white: #ffffff;
     --gray-border: #e2e8f0;
     --text-gray: #64748b;
+    --text-dark: #0f172a;
 
-    /* ESPAÇAMENTOS E BORDAS */
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    /* Bordas mais suaves (visual moderno) */
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 24px;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.1);
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 * {
@@ -40,14 +36,42 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     background-color: var(--bg-body);
-    color: var(--blue-navy);
+    color: var(--text-dark);
     line-height: 1.6;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
 }
+
+/* Marca Conhecência */
+.logo-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+    font-weight: 800;
+    background: var(--blue-navy);
+    color: var(--white);
+    border-radius: 50%;
+    margin-right: 0.5rem;
+    letter-spacing: -0.02em;
+}
+.logo-mark-inline {
+    width: 45px;
+    height: 45px;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+.site-title { letter-spacing: -0.02em; }
+.brand-link { transition: opacity 0.2s, transform 0.2s; text-decoration: none !important; }
+.brand-link:hover { opacity: 0.9; }
+.footer-tagline { font-size: 0.75rem; opacity: 0.9; }
 
 a {
     text-decoration: none;
@@ -92,8 +116,9 @@ button {
     position: sticky;
     top: 0;
     z-index: 100;
-    padding: 15px 0;
+    padding: 1rem 0;
     box-shadow: var(--shadow-sm);
+    backdrop-filter: saturate(180%) blur(8px);
 }
 
 .header-content {
@@ -163,9 +188,18 @@ button {
     flex: 1;
     height: 45px;
     border: 2px solid var(--blue-navy);
-    border-left: none;
-    border-right: none;
-    padding: 0 15px;
+    padding: 0 16px;
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+#search-input:focus {
+    border-color: var(--blue-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    outline: none;
+}
+.form-control:focus {
+    border-color: var(--blue-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 #search-btn {
@@ -174,8 +208,9 @@ button {
     border: none;
     height: 45px;
     width: 50px;
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
     font-size: 1rem;
+    transition: background 0.2s, transform 0.2s;
 }
 
 #search-btn:hover {
@@ -297,18 +332,19 @@ button {
 .product-card {
     background: var(--white);
     border: 1px solid var(--gray-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     overflow: hidden;
     position: relative;
     display: flex;
     flex-direction: column;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s;
+    box-shadow: var(--shadow-card);
 }
 
 .product-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--blue-primary);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-6px);
+    border-color: rgba(37, 99, 235, 0.25);
+    box-shadow: var(--shadow-lg);
 }
 
 .offer-badge {
@@ -352,6 +388,7 @@ button {
     margin: 10px 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     cursor: pointer;
@@ -380,24 +417,27 @@ button {
     color: var(--blue-navy);
 }
 
-/* Botões Universais */
-.btn-buy {
+/* Botões Universais — visual moderno */
+.btn-buy,
+.btn-primary {
     background: var(--blue-primary);
     color: var(--white);
     border: none;
-    padding: 12px;
-    border-radius: var(--radius-sm);
+    padding: 12px 20px;
+    border-radius: var(--radius-md);
     font-weight: 700;
-    width: 100%;
     font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    transition: 0.2s;
+    letter-spacing: 0.02em;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: inherit;
 }
+.btn-buy { width: 100%; text-transform: uppercase; letter-spacing: 0.5px; }
 
-.btn-buy:hover {
+.btn-buy:hover,
+.btn-primary:hover {
     background: var(--blue-hover);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
 
 .btn-buy:disabled {
@@ -449,11 +489,12 @@ button {
     background: var(--white);
     width: 90%;
     max-width: 900px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
     box-shadow: var(--shadow-lg);
     position: relative;
     overflow: hidden;
     animation: zoomIn 0.3s ease;
+    border: 1px solid var(--gray-border);
 }
 
 /* Grid do Modal de Detalhes */
@@ -676,8 +717,12 @@ button {
 
 .nav-item-mobile.active {
     color: var(--blue-primary);
-    /* Azul ativo */
-    font-weight: 800;
+    font-weight: 700;
+}
+
+/* Input group da busca — cantos arredondados no dropdown */
+.input-group .btn.dropdown-toggle {
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 
 /* Modal de Sugestão (Centralizado) */
@@ -835,4 +880,20 @@ button {
         transform: scale(1);
         opacity: 1;
     }
+}
+/* Força a barra de pesquisa inteira a ter a mesma altura */
+#search-input, 
+#search-btn {
+    height: 45px; /* Você pode aumentar ou diminuir esse valor para deixar a barra mais gordinha ou fina */
+    padding-top: 0;
+    padding-bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ajusta as bordas para não ficarem duplicadas ou quebradas no meio */
+#search-btn {
+    border-top-right-radius: 6px !important;
+    border-bottom-right-radius: 6px !important;
 }
